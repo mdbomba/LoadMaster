@@ -4,9 +4,27 @@ WAF (Web Application Firewall) Tools
 Tools for managing WAF rules and configuration on the LoadMaster.
 """
 
+import base64
+import binascii
+
 from mcp.server.fastmcp import FastMCP
 
 from ..config import require_client
+
+
+def _decode_base64(data: str) -> bytes:
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"WAF rules data must be valid base64: {e}") from e
+
+
+def _vs_selector(vs: str, port: str, prot: str, vs_index: str) -> dict[str, str]:
+    if vs_index:
+        return {"vs": vs_index}
+    if vs and port and prot:
+        return {"vs": vs, "port": port, "prot": prot}
+    raise ValueError("Provide vs_index or all of vs, port, and prot.")
 
 
 def register(mcp: FastMCP) -> None:
@@ -29,7 +47,7 @@ def register(mcp: FastMCP) -> None:
         client = require_client()
         resp = client.post(
             "installwafrules",
-            data=rules_data.encode("utf-8"),
+            data=_decode_base64(rules_data),
             content_type="application/octet-stream",
         )
         return resp.to_text()
@@ -162,16 +180,7 @@ def register(mcp: FastMCP) -> None:
             blocking_paranoia: Paranoia level (1-4, higher = stricter)
         """
         client = require_client()
-        params: dict = {"Intercept": "1"}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
+        params: dict = {"Intercept": "1", **_vs_selector(vs, port, prot, vs_index)}
         if intercept_mode:
             params["InterceptMode"] = intercept_mode
         if intercept_opts:
@@ -197,15 +206,6 @@ def register(mcp: FastMCP) -> None:
             vs_index: VS index number (alternative to vs+port+prot)
         """
         client = require_client()
-        params: dict = {"Intercept": "0"}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
+        params: dict = {"Intercept": "0", **_vs_selector(vs, port, prot, vs_index)}
         resp = client.execute("modvs", params=params)
         return resp.to_text()

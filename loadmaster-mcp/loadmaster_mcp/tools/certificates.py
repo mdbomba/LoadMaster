@@ -4,9 +4,19 @@ Certificate Management Tools
 Tools for managing TLS/SSL certificates on the LoadMaster.
 """
 
+import base64
+import binascii
+
 from mcp.server.fastmcp import FastMCP
 
 from ..config import require_client
+
+
+def _decode_base64(data: str) -> bytes:
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"Certificate data must be valid base64: {e}") from e
 
 
 def register(mcp: FastMCP) -> None:
@@ -31,21 +41,26 @@ def register(mcp: FastMCP) -> None:
         return resp.to_text()
 
     @mcp.tool()
-    def lm_add_certificate(cert_name: str, cert_data: str, cert_type: str = "pem") -> str:
+    def lm_add_certificate(cert_name: str, cert_data: str, password: str) -> str:
         """Upload and install a TLS certificate.
 
         Args:
             cert_name: Name to assign to the certificate
-            cert_data: Certificate content (PEM or PKCS12 base64 encoded)
-            cert_type: Certificate type - 'pem' or 'p12' (default: pem)
+            cert_data: Base64-encoded PEM bundle containing key, leaf, and chain
+            password: PFX password used when the certificate was generated
         """
         client = require_client()
-        params = {"cert": cert_name, "type": cert_type}
-        resp = client.post(
+        _decode_base64(cert_data)
+        # APIv2 addcert accepts the encoded bundle directly.  The password is
+        # required by current firmware even when the PEM bundle is unencrypted.
+        resp = client.execute(
             "addcert",
-            params=params,
-            data=cert_data.encode("utf-8"),
-            content_type="application/x-www-form-urlencoded",
+            params={
+                "cert": cert_name,
+                "password": password,
+                "replace": "0",
+                "data": cert_data,
+            },
         )
         return resp.to_text()
 
@@ -75,7 +90,7 @@ def register(mcp: FastMCP) -> None:
         resp = client.post(
             "addintermediate",
             params=params,
-            data=cert_data.encode("utf-8"),
+            data=_decode_base64(cert_data),
             content_type="application/x-www-form-urlencoded",
         )
         return resp.to_text()

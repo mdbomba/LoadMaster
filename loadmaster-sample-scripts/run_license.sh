@@ -21,9 +21,29 @@ prompt_if_empty Api_User     "API admin username"
 prompt_if_empty Api_Pass     "API admin password" yes
 prompt_if_empty New_Api_Pass "New password for admin account" yes
 prompt_if_empty License_Type "License model (e.g. mela, melaenterprise)"
+if [[ "${License_Type,,}" != "free" ]]; then
+  prompt_if_empty Non_Free_License_Choice "Non-Free license choice (trial or paid)"
+  Non_Free_License_Choice="${Non_Free_License_Choice,,}"
+  if [[ "$Non_Free_License_Choice" != "trial" && "$Non_Free_License_Choice" != "paid" ]]; then
+    echo "Non-Free license choice must be 'trial' or 'paid'." >&2
+    exit 1
+  fi
+  if [[ "$Non_Free_License_Choice" == "paid" && -z "${Order_Id:-}" ]]; then
+    if ! read -r -p "  Progress Order ID (required for paid license): " Order_Id; then
+      Order_Id=""
+    fi
+    if [[ -z "$Order_Id" ]]; then
+      echo "A valid Progress Order ID is required for a paid LoadMaster license. Build stopped before licensing." >&2
+      exit 1
+    fi
+  fi
+  if [[ "$Non_Free_License_Choice" == "trial" ]]; then
+    License_Type="trial"
+    Order_Id=""
+  fi
+fi
 prompt_if_empty Progress_User "Progress (KEMP) account email"
 prompt_if_empty Progress_Pass "Progress (KEMP) account password" yes
-prompt_if_empty Order_Id     "Order ID (leave blank for trial)"
 prompt_if_empty ntphost      "NTP server hostname or IP"
 prompt_if_empty nameserver   "DNS nameserver(s) (comma-separated for multiple)"
 prompt_if_empty hostname     "Appliance hostname"
@@ -141,6 +161,15 @@ if [[ -z "$success_json" ]]; then
   end_step_fail "${LAST_ERROR:-no license types returned}"
 fi
 mapfile -t _choices < <(printf '%s' "$success_json" | jq -r '.categories[].licenseTypes[] | "\(.id)|\(.description)"')
+if [[ "${Non_Free_License_Choice:-}" == "trial" ]]; then
+  mapfile -t _choices < <(printf '%s' "$success_json" | jq -r '.categories[].licenseTypes[] | select((.description // .name // "") | ascii_downcase | contains("trial")) | "\(.id)|\(.description)"')
+fi
+if [[ "${Non_Free_License_Choice:-}" == "paid" ]]; then
+  mapfile -t _choices < <(printf '%s' "$success_json" | jq -r '.categories[].licenseTypes[] | select((((.description // .name // "") | ascii_downcase | contains("trial")) or (.free // false) or ((.description // .name // "") | ascii_downcase | contains("free"))) | not) | "\(.id)|\(.description)"')
+fi
+if [[ "${#_choices[@]}" -eq 0 ]]; then
+  end_step_fail "no ${Non_Free_License_Choice:-requested} license types are available for this account"
+fi
 end_step_ok "${#_choices[@]} type(s) available"
 
 # ── interactive license selection ─────────────────────────────────────────────
@@ -168,6 +197,7 @@ done
 
 begin_step "Installing license"
 query="kempid=${Progress_User}&password=${encoded_pass}&lic_type_id=${lic_id}"
+[[ -n "$Order_Id" ]] && query="${query}&orderid=${Order_Id}"
 run_endpoint_call "access/alsilicense" "install" "$query" 60 >/dev/null 2>&1
 if [[ "$LAST_CODE" != "ok" ]]; then
   end_step_fail "${LAST_ERROR:-code=${LAST_CODE}}"
@@ -256,5 +286,9 @@ echo "  ✓  NTP server set to ${ntphost}."
 echo "  ✓  DNS nameserver set to ${nameserver}."
 echo "  ✓  Hostname set to ${hostname}."
 echo "  ✓  Appliance reachable at ${Api_Ip}."
+if [[ "${Vm_Name:-}" =~ ^[0-9]+_vlm[0-9]+$ ]]; then
+  echo "  !  Test build incomplete: install and verify the required management TLS certificate."
+  echo "     Follow ../loadmaster-documents/TEST-LOADMASTER-RUNBOOK.md#required-management-tls-certificate."
+fi
 echo "  Captures saved to: ${CAPTURE_ROOT}/licensing/"
 echo ""

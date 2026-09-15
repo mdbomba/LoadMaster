@@ -17,7 +17,7 @@ An MCP (Model Context Protocol) server that provides AI assistants with full man
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/mdbomba/markdown.git
+git clone https://github.com/mdbomba/LoadMaster.git
 cd LoadMaster/loadmaster-mcp
 ```
 
@@ -110,6 +110,15 @@ Once your AI tool is configured and restarted, ask it to test the connection:
 
 The MCP server will attempt to reach your LoadMaster and return its status.
 
+### Run Tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+The test suite uses mocked HTTP clients only. Run a separate validation against a
+non-production LoadMaster before deploying configuration changes to production.
+
 ## Configuration
 
 | Variable | Required | Default | Description |
@@ -124,20 +133,20 @@ The MCP server will attempt to reach your LoadMaster and return its status.
 
 *One of `LM_PASSWORD` or `LM_API_KEY` is required for live tools.
 
-The `.env` file is searched in: current directory, `markdown/`, project root, or `~/.config/loadmaster/`.
+The `.env` file is searched in: current directory, `loadmaster-mcp/`, project root, or `~/.config/loadmaster/`.
 
 ## API Interface Notes
 
 The MCP server communicates with the LoadMaster using both API interfaces:
 
-- **APIv2** (default) — JSON POST to `/accessv2` for all post-license configuration. No URL size limits.
-- **APIv1** (fallback) — GET to `/access/<cmd>?params` for pre-license operations and binary uploads.
+- **APIv2** (default) — JSON POST to `/accessv2` for all standard post-license queries and configuration. No URL size limits.
+- **APIv1** (restricted fallback) — used for pre-license operations and binary uploads.
 
 See `loadmaster-documents/loadmaster_api_knowledge.md` for full API architecture documentation.
 
 ## Available Tools (156 live management tools + 323 documented API endpoints)
 
-The MCP server provides two types of capabilities:
+The MCP server provides two types of capabilities. Documentation and sample resources are bundled into installed wheels and are also read directly from the repository during editable development:
 
 1. **Live management tools** (156) — Direct actions on a connected LoadMaster (create VS, add RS, set parameters, etc.)
 2. **Documentation search** — Access to 323 per-endpoint API reference docs that the AI can consult for parameter details, examples, and behavior notes

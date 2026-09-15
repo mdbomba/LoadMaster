@@ -28,6 +28,18 @@ For brevity, examples below show only the JSON body.
 
 This flow uses APIv1 because the appliance is not fully initialized until licensed.
 
+For repository test runs, use `Kemp1fourall` as the disposable initial `bal`
+password unless the user specifies another value. For a deployment not
+explicitly identified as a test, prompt the operator for a new `bal` password
+before licensing begins, regardless of image or license type.
+
+For the vendor Free image, select the Free license type. If the user explicitly
+deploys a non-Free image, ask whether they want a `trial` or `paid` license.
+Use the same Progress account credentials for either. Proceed with `trial`
+without an Order ID. For `paid`, prompt for a valid Progress Order ID and stop
+before licensing if none is provided. Pass the Order ID to both
+`alsilicensetypes` and `alsilicense` for the paid flow.
+
 ```bash
 LM_IP="10.0.0.100"
 KEMP_USER="user@example.com"
@@ -129,12 +141,16 @@ Create a VS for a web application with two backend servers.
 
 ## 4. Certificate Management
 
+For the tested fresh KVM test-appliance and management-WUI certificate process,
+including local certificate sources and cleanup requirements, see
+`TEST-LOADMASTER-RUNBOOK.md`.
+
 ### Upload a certificate
 
 ```json
-{"apiuser":"bal","apipass":"PASSWORD","cmd":"addcert",
- "cert":"my-cert","replace":"1",
- "certfile":"<base64-encoded PEM content>"}
+{"apikey":"API_KEY","cmd":"addcert",
+ "cert":"my-cert","password":"PFX_PASSWORD","replace":"1",
+ "data":"<base64-encoded PEM bundle including key and chain>"}
 ```
 
 ### Upload an intermediate CA

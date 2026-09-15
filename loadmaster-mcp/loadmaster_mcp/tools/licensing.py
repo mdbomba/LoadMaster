@@ -54,8 +54,24 @@ def _make_client(host: str = "", password: str = "") -> LoadMasterClient:
             password=password or _FACTORY_PASS,
             verify_ssl=False,
             timeout=30.0,
+            use_api_v1=True,
         )
     return require_client()
+
+
+def _make_prelicense_client(host: str = "", password: str = "") -> LoadMasterClient:
+    """Create an APIv1 client for appliance initialization and licensing."""
+    client = _make_client(host, password)
+    return LoadMasterClient(
+        host=client.host,
+        port=client.port,
+        username=client.username,
+        password=client.password,
+        api_key=client.api_key,
+        verify_ssl=client.verify_ssl,
+        timeout=client.timeout,
+        use_api_v1=True,
+    )
 
 
 def _is_already_licensed() -> tuple[bool, str]:
@@ -142,6 +158,30 @@ def _discover_vm_ip(vm_name: str) -> tuple[str, list[str], str]:
     return state, ips, f"VM '{vm_name}' is running with IP(s): {', '.join(ips)}"
 
 
+def _select_license_type(raw_success: str, license_choice: str) -> str:
+    """Return the first available license ID matching the requested class."""
+    try:
+        license_data = json.loads(raw_success)
+    except json.JSONDecodeError:
+        return ""
+
+    for category in license_data.get("categories", []):
+        for license_type in category.get("licenseTypes", []):
+            label = " ".join(
+                str(license_type.get(field, ""))
+                for field in ("name", "description")
+            ).lower()
+            is_free = bool(license_type.get("free")) or "free" in label
+            is_trial = "trial" in label
+            if license_choice == "free" and is_free:
+                return str(license_type.get("id", ""))
+            if license_choice == "trial" and is_trial:
+                return str(license_type.get("id", ""))
+            if license_choice == "paid" and not is_free and not is_trial:
+                return str(license_type.get("id", ""))
+    return ""
+
+
 def register(mcp: FastMCP) -> None:
     """Register licensing tools with the MCP server."""
 
@@ -218,7 +258,7 @@ def register(mcp: FastMCP) -> None:
         if licensed:
             return f"SKIP: {detail}"
 
-        client = require_client()
+        client = _make_prelicense_client()
         resp = client.get("readeula")
         return resp.to_text()
 
@@ -229,7 +269,7 @@ def register(mcp: FastMCP) -> None:
         Args:
             magic: The magic string from lm_read_eula response
         """
-        client = require_client()
+        client = _make_prelicense_client()
         resp = client.execute("accepteula", params={"magic": magic, "accept": "yes"})
         return resp.to_text()
 
@@ -241,7 +281,7 @@ def register(mcp: FastMCP) -> None:
             magic: The magic string from lm_accept_eula response
             accept: Accept telemetry - 'yes' or 'no'
         """
-        client = require_client()
+        client = _make_prelicense_client()
         resp = client.execute("accepteula2", params={"magic": magic, "accept": accept})
         return resp.to_text()
 
@@ -271,7 +311,7 @@ def register(mcp: FastMCP) -> None:
         if licensed:
             return f"SKIP: {detail}"
 
-        client = require_client()
+        client = _make_prelicense_client()
         params: dict = {"kempid": kemp_id, "password": password}
         if license_type:
             params["type"] = license_type
@@ -307,7 +347,7 @@ def register(mcp: FastMCP) -> None:
         if licensed:
             return f"SKIP: {detail}"
 
-        client = require_client()
+        client = _make_prelicense_client()
         params: dict = {
             "kempid": kemp_id,
             "password": password,
@@ -333,7 +373,7 @@ def register(mcp: FastMCP) -> None:
             password: KEMP account password (ask the user for this)
             order_id: Optional order ID to filter license types
         """
-        client = require_client()
+        client = _make_prelicense_client()
         params: dict = {"kempid": kemp_id, "password": password}
         if order_id:
             params["orderid"] = order_id
@@ -362,7 +402,7 @@ def register(mcp: FastMCP) -> None:
         Args:
             password: New admin password (ask the user for this)
         """
-        client = require_client()
+        client = _make_prelicense_client()
         resp = client.execute("set_initial_passwd", params={"passwd": password})
         return resp.to_text()
 
@@ -383,6 +423,9 @@ def register(mcp: FastMCP) -> None:
         kemp_id: str,
         password: str,
         new_password: str = "",
+        image_type: str = "free",
+        non_free_license: str = "",
+        order_id: str = "",
         desired_ip: str = "",
         ntp_host: str = "pool.ntp.org",
         nameserver: str = "8.8.8.8,8.8.4.4",
@@ -394,14 +437,19 @@ def register(mcp: FastMCP) -> None:
           1. Discovers the VM's actual IP via virsh (if LM_VM_NAME is set)
           2. Checks if already licensed at LM_HOST — skips if so
           3. Reads and accepts the EULA (both steps)
-          4. Fetches license types and selects the Free license
+          4. Fetches license types and selects the requested license
           5. Installs the license
           6. Sets the initial admin password
           7. Re-enables the API
           8. Configures NTP, DNS, and hostname
           9. Changes the interface IP to the desired address (if provided)
+         10. Requires management TLS certificate installation and verification
+             before a test-VM build is complete; see TEST-LOADMASTER-RUNBOOK.md.
 
         IMPORTANT: The kemp_id, password, and new_password are required.
+        For an explicitly requested non-Free image, ask the user whether they
+        want a Trial License or Paid License. Paid License requires order_id;
+        the workflow stops before changing the appliance when it is missing.
         The AI assistant must ask the user for:
           1. Their Progress/KEMP account credentials (kemp_id + password)
           2. The desired admin password for the LoadMaster (new_password)
@@ -412,6 +460,10 @@ def register(mcp: FastMCP) -> None:
             password: Progress/KEMP account password (ask the user for this)
             new_password: New admin password for the LoadMaster bal account
                           (ask the user for this - REQUIRED)
+            image_type: 'free' (default) or 'non-free' for an explicitly
+                        requested non-Free image.
+            non_free_license: Required for non-Free images: 'trial' or 'paid'.
+            order_id: Required for a non-Free paid license; omit for trial.
             desired_ip: Target IP with CIDR (e.g. '10.0.0.14/24'). If empty,
                         uses LM_HOST from .env with /24.
             ntp_host: NTP server (default: pool.ntp.org)
@@ -428,6 +480,23 @@ def register(mcp: FastMCP) -> None:
                 "the user what password they want for the LoadMaster admin "
                 "account (bal) before calling this tool."
             )
+        image_type = image_type.lower().strip()
+        non_free_license = non_free_license.lower().strip()
+        if image_type not in {"free", "non-free"}:
+            return "FAILED: image_type must be 'free' or 'non-free'."
+        if image_type == "non-free":
+            if non_free_license not in {"trial", "paid"}:
+                return (
+                    "FAILED: A non-Free image requires an explicit license choice: "
+                    "'trial' or 'paid'."
+                )
+            if non_free_license == "paid" and not order_id.strip():
+                return (
+                    "FAILED: A valid Progress Order ID is required for a paid "
+                    "LoadMaster license. Build stopped before licensing."
+                )
+        else:
+            non_free_license = "free"
         if not desired_ip:
             desired_ip = f"{config.host}/24" if config.host else ""
         desired_host = desired_ip.split("/")[0] if desired_ip else ""
@@ -458,7 +527,7 @@ def register(mcp: FastMCP) -> None:
             return "FAILED: Could not determine appliance IP address."
 
         # Create a client targeting the actual DHCP IP with factory creds
-        client = _make_client(actual_ip)
+        client = _make_prelicense_client(actual_ip)
 
         # ── Step 3: Read EULA ──────────────────────────────────────────────
         resp = client.get("readeula")
@@ -482,7 +551,7 @@ def register(mcp: FastMCP) -> None:
 
         # ── Step 4: Accept EULA (step 1) ───────────────────────────────────
         resp = client.execute("accepteula", params={
-            "magic": magic, "accept": "yes", "type": "free",
+            "magic": magic, "accept": "yes", "type": non_free_license,
         })
         if not resp.success:
             return f"FAILED at step 4 (accept EULA 1): {resp.message}"
@@ -510,14 +579,17 @@ def register(mcp: FastMCP) -> None:
         log.append("5. EULA step 2: accepted")
 
         # ── Step 6: Fetch license types ────────────────────────────────────
-        resp = client.execute("alsilicensetypes", params={
+        license_params = {
             "kempid": kemp_id, "password": password,
-        })
+        }
+        if order_id:
+            license_params["orderid"] = order_id
+        resp = client.execute("alsilicensetypes", params=license_params)
         if not resp.success:
             return f"FAILED at step 6 (license types): {resp.message}"
 
-        # Parse the JSON from the Success element to find the Free license ID
-        free_lic_id = ""
+        # Parse the JSON from the Success element to find the requested license.
+        license_id = ""
         raw_success = ""
         if resp.raw_xml:
             try:
@@ -529,32 +601,28 @@ def register(mcp: FastMCP) -> None:
                 pass
         if raw_success:
             try:
-                lic_data = json.loads(raw_success)
-                for cat in lic_data.get("categories", []):
-                    for lt in cat.get("licenseTypes", []):
-                        if lt.get("free") or "free" in lt.get("name", "").lower():
-                            free_lic_id = lt["id"]
-                            break
-                    if free_lic_id:
-                        break
+                license_id = _select_license_type(raw_success, non_free_license)
             except (json.JSONDecodeError, KeyError):
                 pass
-        if not free_lic_id:
+        if not license_id:
             return (
-                f"FAILED at step 6: Could not find Free license type. "
+                f"FAILED at step 6: Could not find a {non_free_license} license type. "
                 f"Raw response available for manual inspection."
             )
-        log.append(f"6. License types: Free license found (id: {free_lic_id[:12]}...)")
+        log.append(f"6. License types: {non_free_license} license found (id: {license_id[:12]}...)")
 
-        # ── Step 7: Install Free license ───────────────────────────────────
-        resp = client.execute("alsilicense", params={
+        # ── Step 7: Install the selected license ────────────────────────────
+        license_params = {
             "kempid": kemp_id,
             "password": password,
-            "lic_type_id": free_lic_id,
-        }, timeout=90)
+            "lic_type_id": license_id,
+        }
+        if order_id:
+            license_params["orderid"] = order_id
+        resp = client.execute("alsilicense", params=license_params, timeout=90)
         if not resp.success:
             return f"FAILED at step 7 (install license): {resp.message}"
-        log.append("7. License installed: Free LoadMaster")
+        log.append(f"7. License installed: {non_free_license} LoadMaster")
 
         # ── Step 8: Set initial password ───────────────────────────────────
         time.sleep(10)  # appliance restarts internally after licensing
@@ -570,7 +638,7 @@ def register(mcp: FastMCP) -> None:
         log.append("8. Admin password set")
 
         # Switch to new-password client for remaining steps
-        client = _make_client(actual_ip, new_password)
+        client = _make_prelicense_client(actual_ip, new_password)
         time.sleep(5)
 
         # ── Step 9: Re-enable API ──────────────────────────────────────────
@@ -584,6 +652,9 @@ def register(mcp: FastMCP) -> None:
         if not resp.success:
             return f"FAILED at step 9 (enable API): {resp.message}"
         log.append("9. API re-enabled")
+
+        # APIv2 is now available and avoids APIv1 URL size and escaping limits.
+        client.use_api_v1 = False
 
         # ── Step 10: Set NTP ───────────────────────────────────────────────
         resp = client.execute("set", params={
@@ -632,6 +703,12 @@ def register(mcp: FastMCP) -> None:
         log.insert(0, "=== LoadMaster Licensing Complete ===\n")
         log.append("")
         log.append("Done. The LoadMaster is licensed and configured.")
+        if config.vm_name and re.fullmatch(r"\d+_vlm\d+", config.vm_name):
+            log.append(
+                "REQUIRED NEXT STEP: Generate, install, and verify the locally signed "
+                "management TLS certificate before considering this test build complete. "
+                "Follow loadmaster-documents/TEST-LOADMASTER-RUNBOOK.md."
+            )
         if new_password != config.password:
             log.append("")
             log.append(

@@ -5,7 +5,7 @@ Handles connection, authentication, and XML response parsing for the
 Kemp LoadMaster RESTful API.
 """
 
-import os
+import json
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass, field
 from typing import Any, Optional
@@ -147,6 +147,13 @@ def parse_lm_response(raw_xml: str) -> LMResponse:
             message=error_el.text.strip(),
             raw_xml=raw_xml,
         )
+    if status_code >= 400:
+        return LMResponse(
+            status_code=status_code,
+            success=False,
+            message=f"LoadMaster returned API code {status_code}",
+            raw_xml=raw_xml,
+        )
 
     # Extract success data
     success_el = root.find(".//Success")
@@ -180,6 +187,41 @@ def parse_lm_response(raw_xml: str) -> LMResponse:
     )
 
 
+def parse_lm_json_response(raw_json: str, status_code: int) -> LMResponse:
+    """Parse an APIv2 JSON response into an LMResponse object."""
+    try:
+        payload = json.loads(raw_json)
+    except json.JSONDecodeError as e:
+        return LMResponse(
+            status_code=status_code,
+            success=False,
+            message=f"Failed to parse JSON response: {e}",
+            raw_xml=raw_json,
+        )
+
+    if not isinstance(payload, dict):
+        return LMResponse(
+            status_code=status_code,
+            success=False,
+            message="Unexpected JSON response",
+            raw_xml=raw_json,
+        )
+
+    api_code = payload.get("code", status_code)
+    try:
+        api_code = int(api_code)
+    except (TypeError, ValueError):
+        api_code = status_code
+    message = str(payload.get("message", payload.get("status", "")))
+    success = 200 <= status_code < 300 and 200 <= api_code < 300
+    if not success and not message:
+        message = f"LoadMaster returned API code {api_code}"
+    if success and not message:
+        message = "Command successfully executed."
+    data = {key: value for key, value in payload.items() if key not in {"code", "message", "status"}}
+    return LMResponse(status_code=api_code, success=success, message=message, data=data, raw_xml=raw_json)
+
+
 class LoadMasterClient:
     """HTTP client for the Kemp LoadMaster REST API."""
 
@@ -192,6 +234,7 @@ class LoadMasterClient:
         api_key: Optional[str] = None,
         verify_ssl: bool = False,
         timeout: float = 30.0,
+        use_api_v1: bool = False,
     ):
         self.host = host
         self.port = port
@@ -200,6 +243,7 @@ class LoadMasterClient:
         self.api_key = api_key
         self.verify_ssl = verify_ssl
         self.timeout = timeout
+        self.use_api_v1 = use_api_v1
         self._base_url = f"https://{host}:{port}"
 
     @property
@@ -209,20 +253,27 @@ class LoadMasterClient:
             return httpx.BasicAuth(self.username, self.password)
         return None
 
-    def _build_url(self, command: str, params: Optional[dict[str, Any]] = None) -> str:
-        """Build the full API URL."""
-        url = f"{self._base_url}/access/{command}"
-        if params:
-            # Filter out None values
-            filtered = {k: v for k, v in params.items() if v is not None}
-            if filtered:
-                query_parts = []
-                for k, v in filtered.items():
-                    if isinstance(v, bool):
-                        v = "yes" if v else "no"
-                    query_parts.append(f"{k}={v}")
-                url += "?" + "&".join(query_parts)
-        return url
+    def _build_url(self, command: str) -> str:
+        """Build an APIv1 endpoint URL. Parameters are passed to HTTPX separately."""
+        return f"{self._base_url}/access/{command}"
+
+    @staticmethod
+    def _clean_params(params: Optional[dict[str, Any]]) -> dict[str, Any]:
+        """Remove unset values and normalize booleans for LoadMaster APIs."""
+        return {
+            key: ("yes" if value else "no") if isinstance(value, bool) else value
+            for key, value in (params or {}).items()
+            if value is not None
+        }
+
+    def _api_v2_payload(self, command: str, params: Optional[dict[str, Any]]) -> dict[str, Any]:
+        payload = {"cmd": command, **self._clean_params(params)}
+        if self.api_key:
+            payload["apikey"] = self.api_key
+        elif self.username and self.password:
+            payload["apiuser"] = self.username
+            payload["apipass"] = self.password
+        return payload
 
     def _get_headers(self) -> dict[str, str]:
         """Build request headers."""
@@ -253,7 +304,11 @@ class LoadMasterClient:
         Returns:
             Parsed LMResponse object
         """
-        url = self._build_url(command, params)
+        # Binary endpoints remain APIv1 uploads; all normal management calls use APIv2.
+        if not self.use_api_v1 and not (method.upper() == "POST" and data is not None):
+            return self._execute_v2(command, params, timeout)
+
+        url = self._build_url(command)
         headers = self._get_headers()
         if content_type:
             headers["Content-Type"] = content_type
@@ -265,11 +320,12 @@ class LoadMasterClient:
                 verify=self.verify_ssl,
                 timeout=effective_timeout,
             ) as client:
-                if method.upper() == "POST" and data:
+                if method.upper() == "POST":
                     response = client.post(
                         url,
                         auth=self._auth,
                         headers=headers,
+                        params=self._clean_params(params),
                         content=data,
                     )
                 else:
@@ -277,8 +333,15 @@ class LoadMasterClient:
                         url,
                         auth=self._auth,
                         headers=headers,
+                        params=self._clean_params(params),
                     )
-
+                if response.is_error:
+                    return LMResponse(
+                        response.status_code,
+                        False,
+                        f"HTTP {response.status_code}: {response.text[:500]}",
+                        raw_xml=response.text,
+                    )
                 return parse_lm_response(response.text)
 
         except httpx.ConnectError as e:
@@ -291,7 +354,7 @@ class LoadMasterClient:
             return LMResponse(
                 status_code=0,
                 success=False,
-                message=f"Request timed out after {self.timeout}s: {e}",
+                message=f"Request timed out after {effective_timeout}s: {e}",
             )
         except Exception as e:
             return LMResponse(
@@ -299,6 +362,36 @@ class LoadMasterClient:
                 success=False,
                 message=f"Unexpected error: {e}",
             )
+
+    def _execute_v2(
+        self,
+        command: str,
+        params: Optional[dict[str, Any]],
+        timeout: Optional[float],
+    ) -> LMResponse:
+        """Execute a standard post-license APIv2 JSON request."""
+        effective_timeout = timeout if timeout is not None else self.timeout
+        try:
+            with httpx.Client(verify=self.verify_ssl, timeout=effective_timeout) as client:
+                response = client.post(
+                    f"{self._base_url}/accessv2",
+                    headers={**self._get_headers(), "Content-Type": "application/json"},
+                    json=self._api_v2_payload(command, params),
+                )
+                if response.is_error:
+                    return LMResponse(
+                        response.status_code,
+                        False,
+                        f"HTTP {response.status_code}: {response.text[:500]}",
+                        raw_xml=response.text,
+                    )
+                return parse_lm_json_response(response.text, response.status_code)
+        except httpx.ConnectError as e:
+            return LMResponse(0, False, f"Connection failed to {self.host}:{self.port}: {e}")
+        except httpx.TimeoutException as e:
+            return LMResponse(0, False, f"Request timed out after {effective_timeout}s: {e}")
+        except Exception as e:
+            return LMResponse(0, False, f"Unexpected error: {e}")
 
     def get(self, command: str, **params: Any) -> LMResponse:
         """Shorthand for GET requests."""

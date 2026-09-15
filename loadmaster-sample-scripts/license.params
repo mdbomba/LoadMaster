@@ -1,13 +1,17 @@
 Api_User='bal'
 Api_Pass=''
-New_Api_Pass=''
-Api_Ip='10.0.0.14'
+# Test-only bootstrap password. Change the bal password as soon as possible
+# after licensing and do not use this value outside a disposable test VM.
+New_Api_Pass='Kemp1fourall'
+Api_Ip='10.0.0.99'
 Api_Port='443'
-Vm_Name='14_vlm14'
+Vm_Name='99_vlm99'
 Progress_User=''      # Only used to generate licenses
 Progress_Pass=''                     # Only used to generate licenses
 Order_Id=''
 License_Type='free'
+# Required only for explicitly requested non-Free images: 'trial' or 'paid'.
+Non_Free_License_Choice=''
 ntphost='pool.ntp.org'
-hostname='vlm14'
+hostname='vlm99'
 nameserver='8.8.8.8,8.8.4.4'

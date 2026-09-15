@@ -4,9 +4,20 @@ System Management Tools
 Tools for managing LoadMaster system settings, backup/restore, and maintenance.
 """
 
+import base64
+import binascii
+
 from mcp.server.fastmcp import FastMCP
 
 from ..config import require_client
+
+
+def _decode_base64(data: str) -> bytes:
+    """Decode MCP-provided base64 upload data with a clear user-facing error."""
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"Upload data must be valid base64: {e}") from e
 
 
 def register(mcp: FastMCP) -> None:
@@ -67,7 +78,7 @@ def register(mcp: FastMCP) -> None:
         client = require_client()
         resp = client.post(
             "restore",
-            data=backup_data.encode("utf-8"),
+            data=_decode_base64(backup_data),
             content_type="application/octet-stream",
         )
         return resp.to_text()
@@ -92,7 +103,7 @@ def register(mcp: FastMCP) -> None:
         client = require_client()
         resp = client.post(
             "installpatch",
-            data=patch_data.encode("utf-8"),
+            data=_decode_base64(patch_data),
             content_type="application/octet-stream",
         )
         return resp.to_text()
@@ -124,7 +135,7 @@ def register(mcp: FastMCP) -> None:
         client = require_client()
         resp = client.post(
             "installaddon",
-            data=addon_data.encode("utf-8"),
+            data=_decode_base64(addon_data),
             content_type="application/octet-stream",
         )
         return resp.to_text()
