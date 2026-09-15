@@ -65,5 +65,12 @@ leave a test appliance managed with its vendor self-signed certificate.
 - Upload the private key, leaf certificate, and intermediate chain as a
   base64-encoded PEM bundle through APIv2 `addcert`, set `admincert` to that
   certificate name, and verify the presented certificate and all required SANs.
+- After setting `admincert`, wait for the WUI certificate reload to settle.
+  Confirm the expected leaf certificate and SANs on three consecutive TLS
+  connections, five seconds apart, before opening Firefox.
 - Create any temporary API key and PFX/PEM conversion material outside the
   repository, then remove it and revoke the temporary API key after upload.
+- As the final test-deployment step, after TLS verification and temporary
+  artifact cleanup, open Firefox to `https://10.0.0.<last-octet>` using the
+  user's existing default Firefox profile. Do not use a temporary or isolated
+  profile, and do not bypass certificate warnings.

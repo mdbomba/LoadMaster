@@ -136,18 +136,24 @@ firmware. The required sequence is:
 4. Set `admincert` to the uploaded certificate name through APIv2 `set`.
 5. Remove the temporary API key and every temporary PFX/PEM/password file.
 
-Validate both the LoadMaster setting and the certificate presented by the WUI:
+Validate both the LoadMaster setting and the certificate presented by the WUI.
+The WUI can continue presenting its previous certificate briefly after
+`admincert` changes. Before browser launch, require three consecutive successful
+TLS checks five seconds apart:
 
 ```bash
 curl -kfsS -u "bal:$BAL_PASSWORD" \
   "https://$LM_IP/access/get?param=admincert"
 
-printf '' | openssl s_client -connect "$LM_IP:443" -servername "$LM_FQDN" \
-  2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+for attempt in 1 2 3; do
+  printf '' | openssl s_client -connect "$LM_IP:443" -servername "$LM_FQDN" \
+    2>/dev/null | openssl x509 -noout -subject -issuer -dates -ext subjectAltName
+  sleep 5
+done
 ```
 
 For `vlm99`, `admincert` must be `vlm99`, and the presented SANs must include
-`vlm99.demo.lab`, `vlm99`, `10.0.0.99`, and `10.1.0.99`.
+`vlm99.demo.lab`, `vlm99`, `10.0.0.99`, and `10.1.0.99` in all three checks.
 
 For any test appliance with target management IP `10.0.0.N`, substitute `N`:
 
@@ -158,3 +164,22 @@ For any test appliance with target management IP `10.0.0.N`, substitute `N`:
 | Short hostname SAN | `vlmN` |
 | Management IP SAN | `10.0.0.N` |
 | Secondary IP SAN | `10.1.0.N` |
+
+## Final WUI Validation
+
+After the three certificate checks succeed, wait an additional 15 seconds for
+the WUI reload to finish. Then remove all temporary API keys and
+certificate-conversion material, and open the LoadMaster management WUI in
+Firefox using the user's existing default Firefox profile. That profile already
+trusts the local CA and intermediate CA. Do not use an isolated temporary
+profile and do not bypass a certificate warning. This is the final step of a
+test build:
+
+```bash
+firefox https://10.0.0.99
+```
+
+For a test appliance with management address `10.0.0.N`, use
+`firefox https://10.0.0.N`. Do not launch Firefox before the WUI presents the
+locally signed management certificate consistently and the reload wait has
+completed.

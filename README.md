@@ -184,7 +184,11 @@ For a deployment that is not explicitly a test, the operator must supply a new
 A test build is complete only after a locally signed management-WUI TLS
 certificate has been generated, installed as `admincert`, and verified. The
 certificate must cover `vlmN.demo.lab`, `vlmN`, `10.0.0.N`, and `10.1.0.N` for a
-test appliance whose management address ends in `N`.
+test appliance whose management address ends in `N`. Wait until that certificate
+is presented consistently before removing temporary TLS artifacts and opening
+Firefox to `https://10.0.0.N` as the final WUI validation step.
+Use the operator's existing default Firefox profile, which trusts the local CA
+and intermediate CA; do not accept or bypass a browser certificate warning.
 
 See `loadmaster-documents/TEST-LOADMASTER-RUNBOOK.md` for the validated
 fresh-media KVM deployment, Free licensing, management-interface TLS
