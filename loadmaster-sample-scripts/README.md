@@ -82,6 +82,12 @@ curl -sk -u "bal:$NEW_PASS" "https://$LM_IP/access/set?param=enableapi&value=1"
 
 Without this step, subsequent API calls will fail with authentication or access errors.
 
+For a test-VM build, management TLS is also required after networking is
+configured. Generate the locally signed certificate, install it as `admincert`,
+and verify the presented certificate as described in
+`../loadmaster-documents/TEST-LOADMASTER-RUNBOOK.md`. The license runner prints
+this requirement when `Vm_Name` follows the test VM naming convention.
+
 ## Management interface IP configuration
 
 After licensing, the management interface IP can be changed using `access/modiface`.

@@ -4,9 +4,19 @@ Certificate Management Tools
 Tools for managing TLS/SSL certificates on the LoadMaster.
 """
 
+import base64
+import binascii
+
 from mcp.server.fastmcp import FastMCP
 
 from ..config import require_client
+
+
+def _decode_base64(data: str) -> bytes:
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"Certificate data must be valid base64: {e}") from e
 
 
 def register(mcp: FastMCP) -> None:
@@ -44,7 +54,7 @@ def register(mcp: FastMCP) -> None:
         resp = client.post(
             "addcert",
             params=params,
-            data=cert_data.encode("utf-8"),
+            data=_decode_base64(cert_data),
             content_type="application/x-www-form-urlencoded",
         )
         return resp.to_text()
@@ -75,7 +85,7 @@ def register(mcp: FastMCP) -> None:
         resp = client.post(
             "addintermediate",
             params=params,
-            data=cert_data.encode("utf-8"),
+            data=_decode_base64(cert_data),
             content_type="application/x-www-form-urlencoded",
         )
         return resp.to_text()

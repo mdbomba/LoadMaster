@@ -157,6 +157,35 @@ With OpenCode + the LoadMaster MCP server, you can:
 
 All through natural language conversation in your terminal.
 
+## Test VM Defaults
+
+For a test LoadMaster whose target management IPv4 address ends in `N`, use
+libvirt VM name `N_vlmN` and appliance hostname `vlmN`. Create test appliances
+from fresh vendor installation media only, never by cloning an existing
+LoadMaster. The default test deployment uses 2 vCPUs, 2 GiB RAM, and two NICs.
+Live project testing uses a fresh vendor Free LoadMaster image, never an
+existing paid, trial, or production appliance.
+
+An explicit request for a non-Free image overrides this default. Non-Free
+images use the same Progress account credentials, but require a `trial` or
+`paid` choice before building. The `trial` flow needs no Order ID. The `paid`
+flow requires a valid Progress Order ID and stops before licensing when none is
+provided.
+
+The test-only initial `bal` password is `Kemp1fourall`. Change it as soon as
+possible after the appliance is licensed; do not use it for non-test systems.
+For a deployment that is not explicitly a test, the operator must supply a new
+`bal` password before licensing begins, regardless of image or license type.
+
+A test build is complete only after a locally signed management-WUI TLS
+certificate has been generated, installed as `admincert`, and verified. The
+certificate must cover `vlmN.demo.lab`, `vlmN`, `10.0.0.N`, and `10.1.0.N` for a
+test appliance whose management address ends in `N`.
+
+See `loadmaster-documents/TEST-LOADMASTER-RUNBOOK.md` for the validated
+fresh-media KVM deployment, Free licensing, management-interface TLS
+certificate workflow, and local source locations.
+
 ## License
 
 This project is provided as-is for educational and operational use with Kemp LoadMaster appliances.
