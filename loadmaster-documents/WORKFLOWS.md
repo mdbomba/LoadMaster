@@ -149,7 +149,7 @@ including local certificate sources and cleanup requirements, see
 
 ```json
 {"apikey":"API_KEY","cmd":"addcert",
- "cert":"my-cert","replace":"1",
+ "cert":"my-cert","password":"PFX_PASSWORD","replace":"1",
  "data":"<base64-encoded PEM bundle including key and chain>"}
 ```
 

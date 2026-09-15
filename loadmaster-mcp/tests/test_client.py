@@ -65,10 +65,35 @@ class LoadMasterClientTests(unittest.TestCase):
         self.assertFalse(parse_lm_response('<Response code="401"><Success /></Response>').success)
         self.assertFalse(parse_lm_json_response('{"code": 401, "message": "Unauthorized"}', 200).success)
 
-    def test_binary_uploads_decode_base64(self):
+    def test_certificate_data_must_be_base64(self):
         self.assertEqual(decode_certificate("Y2VydGlmaWNhdGU="), b"certificate")
         with self.assertRaises(ValueError):
             decode_certificate("not base64!")
+
+    def test_v2_certificate_upload_preserves_base64_bundle_and_password(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(200, json={"code": 200, "status": "ok"})
+
+        with patch("loadmaster_mcp.client.httpx.Client", return_value=_MockClient(handler)):
+            response = LoadMasterClient("loadmaster", api_key="temporary-key").execute(
+                "addcert",
+                {
+                    "cert": "vlm99",
+                    "password": "pfx-password",
+                    "replace": "0",
+                    "data": "Y2VydGlmaWNhdGU=",
+                },
+            )
+
+        self.assertTrue(response.success)
+        self.assertEqual(requests[0].url.path, "/accessv2")
+        payload = json.loads(requests[0].content)
+        self.assertEqual(payload["data"], "Y2VydGlmaWNhdGU=")
+        self.assertEqual(payload["password"], "pfx-password")
+        self.assertEqual(payload["apikey"], "temporary-key")
 
     def test_resource_selectors_require_complete_identity(self):
         self.assertEqual(_vs_selector("", "", "", "12"), {"vs": "12"})

@@ -130,8 +130,9 @@ firmware. The required sequence is:
 1. Create a temporary API key after licensing.
 2. Convert the generated PFX to a temporary PEM bundle, including the private
    key and chain.
-3. Send APIv2 `addcert` with `apikey`, `cmd: addcert`, `cert`, `replace`, and
-   base64 `data`.
+3. Send APIv2 `addcert` with `apikey`, `cmd: addcert`, `cert`, `password`,
+   `replace`, and base64 `data`. On 7.2.63.2, include the PFX password even
+   when the uploaded PEM bundle is not encrypted.
 4. Set `admincert` to the uploaded certificate name through APIv2 `set`.
 5. Remove the temporary API key and every temporary PFX/PEM/password file.
 
