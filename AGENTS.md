@@ -14,6 +14,11 @@ or production appliance for project integration testing. Do not clone an
 existing LoadMaster appliance because its first boot initializes its UUID and
 its first licensing establishes its serial number.
 
+When testing this repository, if the default test VM `99_vlm99` already exists,
+it may be destroyed, undefined, and removed with its standalone disk before a
+new fresh-media `99_vlm99` is created. This replacement permission applies only
+to repository testing; do not destroy an existing VM for a non-test deployment.
+
 This default does not apply when the user explicitly requests a non-Free
 LoadMaster image. Ask whether to install a `trial` or `paid` license before
 starting that build. A non-Free image may use the same Progress account

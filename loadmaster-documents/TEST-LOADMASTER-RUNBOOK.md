@@ -7,6 +7,11 @@ Use this Free-image workflow whenever testing this repository against a live
 LoadMaster. Do not run project integration tests against an existing, paid,
 trial, or production appliance.
 
+For repository testing only, an existing default test VM `99_vlm99` may be
+destroyed, undefined, and have `/var/lib/libvirt/images/99_vlm99.qcow2` removed
+before deploying a new fresh-media `99_vlm99`. Do not use this permission for a
+non-test deployment.
+
 If a user explicitly directs deployment from a non-Free LoadMaster image, that
 instruction overrides the default Free-image selection. Before the build,
 prompt for `trial` or `paid`. Use the same Progress account credentials for

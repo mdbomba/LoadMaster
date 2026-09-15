@@ -166,6 +166,10 @@ LoadMaster. The default test deployment uses 2 vCPUs, 2 GiB RAM, and two NICs.
 Live project testing uses a fresh vendor Free LoadMaster image, never an
 existing paid, trial, or production appliance.
 
+For repository testing only, an existing `99_vlm99` test VM may be removed and
+recreated from fresh Free media. This does not authorize removal of an existing
+LoadMaster for a non-test deployment.
+
 An explicit request for a non-Free image overrides this default. Non-Free
 images use the same Progress account credentials, but require a `trial` or
 `paid` choice before building. The `trial` flow needs no Order ID. The `paid`
