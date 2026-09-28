@@ -9,7 +9,7 @@ Automation scripts, parameter reference, and the KEMP PowerShell SDK for managin
 | `_common.sh` | Shared bash helpers (config loading, API capture, display, prompting) |
 | `run_license.sh` | Interactive production runner — full licensing workflow |
 | `license.sh` | Standalone licensing script (single-file alternative) |
-| `license.params` | Configuration file for credentials and settings |
+| `license.params` | Template of credential and settings keys. Real values go in `~/.secrets/loadmaster.params` |
 | `licensing/*.sh` | One script per API endpoint for testing individual calls |
 | `params-reference.md` | Complete parameter reference with current values and APIv2 usage |
 | `getall.xml` | Raw XML output from `access/getall` for reference |
@@ -30,7 +30,7 @@ From `/home/chef`:
 ./loadmaster-sample-scripts/run_license.sh
 ```
 
-Credentials are read from `license.params` if it exists; any missing values are prompted interactively.
+Credentials are read from `~/.secrets/loadmaster.params`; any missing values are prompted interactively. The in-repo `license.params` is a template and is only used when no secrets file exists.
 
 ## Standalone endpoint scripts
 Each script in `licensing/` accepts an optional scenario label:
@@ -43,8 +43,8 @@ Each script in `licensing/` accepts an optional scenario label:
 Supported scenarios: `success`, `missing-param`, `invalid-value`, `out-of-sequence`, `auth-failed`
 
 ## Environment overrides
-- `LICENSE_PARAMS_FILE` — parameter file path (default: `/home/chef/license.params`)
-- `CAPTURE_ROOT` — where raw responses are saved (default: `/home/chef/captures`)
+- `LICENSE_PARAMS_FILE` — parameter file path (default: `~/.secrets/loadmaster.params`)
+- `CAPTURE_ROOT` — where raw responses are saved (default: `~/repos/.tmp/LoadMaster/captures`)
 - `LICENSE_TYPE` — license model passed to `access/accepteula` (default: `freemax`)
 - `MAGIC` / `MAGIC2` / `LIC_TYPE_ID` — token overrides for standalone scriptlet use
 

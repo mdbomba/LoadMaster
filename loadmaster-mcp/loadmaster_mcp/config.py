@@ -14,13 +14,43 @@ from dotenv import load_dotenv
 from .client import LoadMasterClient
 
 
-# Load .env from multiple potential locations
+# Load .env from multiple potential locations. The first file that exists
+# wins; real environment variables already set always take precedence over
+# anything in these files.
 _ENV_SEARCH_PATHS = [
     Path.cwd() / ".env",
     Path(__file__).resolve().parent.parent.parent / ".env",  # markdown/
     Path(__file__).resolve().parent.parent.parent.parent / ".env",  # project root
     Path.home() / ".config" / "loadmaster" / ".env",
+    Path.home() / ".secrets" / "loadmaster.env",
 ]
+
+
+def _load_params_file() -> None:
+    """Read ~/.secrets/loadmaster.params into the environment.
+
+    The params file uses shell-style KEY='value' lines and shares its
+    credential names with license.params, so a single file can configure
+    both the sample scripts and the MCP server. Existing environment
+    variables are never overwritten.
+    """
+    params_path = Path(
+        os.environ.get("LM_PARAMS_FILE", Path.home() / ".secrets" / "loadmaster.params")
+    ).expanduser()
+    if not params_path.exists():
+        return
+    for raw_line in params_path.read_text().splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key or key in os.environ:
+            continue
+        os.environ[key] = value.strip().strip("'\"")
+
+
+_load_params_file()
 
 for env_path in _ENV_SEARCH_PATHS:
     if env_path.exists():
@@ -54,6 +84,9 @@ class LMConfig:
             LM_VERIFY_SSL: Verify SSL certificates (default: false)
             LM_TIMEOUT: Request timeout in seconds (default: 30)
             LM_VM_NAME: libvirt VM name for IP discovery (optional)
+
+        Also reads ~/.secrets/loadmaster.params, or the path in
+        LM_PARAMS_FILE, for credentials shared with the sample scripts.
         """
         host = os.environ.get("LM_HOST", "")
         if not host:

@@ -70,7 +70,12 @@ ensure_tools() {
 }
 
 load_license_params() {
-  local params_default="${COMMON_DIR}/${LICENSE_PARAMS_NAME}"
+  # Real credentials belong in ~/.secrets/loadmaster.params. The in-repo
+  # license.params is a template and is only a fallback.
+  local params_default="${HOME}/.secrets/loadmaster.params"
+  if [[ ! -f "$params_default" ]]; then
+    params_default="${COMMON_DIR}/${LICENSE_PARAMS_NAME}"
+  fi
   if [[ ! -f "$params_default" ]]; then
     params_default="${PROJECT_ROOT}/${LICENSE_PARAMS_NAME}"
   fi
