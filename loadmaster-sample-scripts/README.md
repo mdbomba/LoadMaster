@@ -49,7 +49,8 @@ Supported scenarios: `success`, `missing-param`, `invalid-value`, `out-of-sequen
 - `MAGIC` / `MAGIC2` / `LIC_TYPE_ID` — token overrides for standalone scriptlet use
 
 ## Captured output
-Every API call saves two files under `captures/licensing/`:
+Every API call saves two files under `${CAPTURE_ROOT}/licensing/` (default:
+`~/repos/.tmp/LoadMaster/captures/licensing/`):
 - `*.xml` — raw response body
 - `*.info.txt` — request metadata with passwords masked
 
