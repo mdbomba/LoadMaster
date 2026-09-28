@@ -29,13 +29,22 @@ from mcp.server.fastmcp import FastMCP
 
 _SERVER_DIR = Path(__file__).resolve().parent
 _PROJECT_ROOT = _SERVER_DIR.parent.parent  # …/markdown/
+_BUNDLED_RESOURCES = _SERVER_DIR / "resources"
+
+
+def _resource_directory(name: str) -> Path:
+    """Use repository resources during development and wheel resources when installed."""
+    project_resource = _PROJECT_ROOT / name
+    if project_resource.exists():
+        return project_resource
+    return _BUNDLED_RESOURCES / name
 
 # Primary source (higher priority)
-MARKDOWN_DIR = _PROJECT_ROOT / "loadmaster-markdown"
+MARKDOWN_DIR = _resource_directory("loadmaster-markdown")
 # Secondary source
-DOCUMENTS_DIR = _PROJECT_ROOT / "loadmaster-documents"
+DOCUMENTS_DIR = _resource_directory("loadmaster-documents")
 # Sample scripts (supplemental)
-SCRIPTS_DIR = _PROJECT_ROOT / "loadmaster-sample-scripts"
+SCRIPTS_DIR = _resource_directory("loadmaster-sample-scripts")
 
 # ── Index construction ─────────────────────────────────────────────────────────
 

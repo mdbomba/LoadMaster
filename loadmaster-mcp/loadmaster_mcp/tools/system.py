@@ -5,6 +5,7 @@ Tools for managing LoadMaster system settings, backup/restore, and maintenance.
 """
 
 import base64
+import binascii
 from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -12,6 +13,14 @@ from pydantic import Field
 
 from ..config import require_client
 from ._binary import decode_base64, format_binary_result, validate_base64
+
+
+def _decode_base64(data: str) -> bytes:
+    """Decode MCP-provided base64 upload data with a clear user-facing error."""
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"Upload data must be valid base64: {e}") from e
 
 
 def register(mcp: FastMCP) -> None:
@@ -181,6 +190,8 @@ def register(mcp: FastMCP) -> None:
             addon = decode_base64(addon_data)
         except ValueError as error:
             return f"Error: {error}"
+        # The API command is addaddon. loadmaster-markdown/system/
+        # access-addaddon.md documents it as "cmd":"addaddon".
         resp = client.upload_binary(
             "addaddon",
             data=addon,

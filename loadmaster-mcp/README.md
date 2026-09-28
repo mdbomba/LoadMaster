@@ -17,7 +17,7 @@ An MCP (Model Context Protocol) server that provides AI assistants with full man
 ### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/mdbomba/markdown.git
+git clone https://github.com/mdbomba/LoadMaster.git
 cd LoadMaster/loadmaster-mcp
 ```
 
@@ -110,6 +110,15 @@ Once your AI tool is configured and restarted, ask it to test the connection:
 
 The MCP server will attempt to reach your LoadMaster and return its status.
 
+### Run Tests
+
+```bash
+python3 -m unittest discover -s tests -v
+```
+
+The test suite uses mocked HTTP clients only. Run a separate validation against a
+non-production LoadMaster before deploying configuration changes to production.
+
 ## Configuration
 
 | Variable | Required | Default | Description |
@@ -124,14 +133,14 @@ The MCP server will attempt to reach your LoadMaster and return its status.
 
 *One of `LM_PASSWORD` or `LM_API_KEY` is required for live tools.
 
-The `.env` file is searched in: current directory, `markdown/`, project root, or `~/.config/loadmaster/`.
+The `.env` file is searched in: current directory, `loadmaster-mcp/`, project root, or `~/.config/loadmaster/`.
 
 ## API Interface Notes
 
 The MCP server communicates with the LoadMaster using both API interfaces:
 
-- **APIv2** (default) — JSON POST to `/accessv2` for post-license configuration and base64 file transfers. No URL size limits.
-- **APIv1** (explicit) — requests to `/access/<cmd>` for pre-license operations and raw binary endpoints such as firmware installation.
+- **APIv2** (default) — JSON POST to `/accessv2` for standard post-license queries, configuration, and base64 file transfers. No URL size limits.
+- **APIv1** (explicit) — requests to `/access/<cmd>` for pre-license operations and raw binary endpoints such as firmware installation. Selected per command from a known set, or forced for a whole client with `use_api_v1=True`, which the pre-license flow requires because no license is installed yet.
 
 Mutating requests are not automatically retried through another API interface. This avoids repeating a change after an ambiguous timeout.
 
@@ -140,11 +149,17 @@ the default and carries file data as base64 JSON. Set `api_version=1` only for
 older-firmware compatibility; the MCP server then converts between base64 and
 the raw API v1 file body without passing binary data through text parsing.
 
+Special case for post-license recovery:
+
+- `enableapi` re-enable should be sent with username/password (basic auth).
+- Do not rely on API key auth for this specific command; some firmware states
+  reject it until API is already enabled.
+
 See `loadmaster-documents/loadmaster_api_knowledge.md` for full API architecture documentation.
 
 ## Available Tools (153 live management tools + 323 documented API endpoints)
 
-The MCP server provides two types of capabilities:
+The MCP server provides two types of capabilities. Documentation and sample resources are bundled into installed wheels and are also read directly from the repository during editable development:
 
 1. **Live management tools** (153) — Direct actions on a connected LoadMaster (create VS, add RS, set parameters, etc.)
 2. **Documentation search** — Access to 323 per-endpoint API reference docs that the AI can consult for parameter details, examples, and behavior notes

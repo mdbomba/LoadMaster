@@ -5,6 +5,7 @@ Tools for managing TLS/SSL certificates on the LoadMaster.
 """
 
 import base64
+import binascii
 from typing import Annotated, Literal
 
 from mcp.server.fastmcp import FastMCP
@@ -28,6 +29,18 @@ CertificatePassword = Annotated[
         description="Case-sensitive ASCII alphanumeric passphrase",
     ),
 ]
+
+
+def _decode_base64(data: str) -> bytes:
+    """Decode certificate data, with certificate-specific error wording.
+
+    Shares validation with the shared _binary helper but keeps its own
+    message so certificate upload failures stay actionable.
+    """
+    try:
+        return base64.b64decode(data, validate=True)
+    except (binascii.Error, ValueError) as e:
+        raise ValueError(f"Certificate data must be valid base64: {e}") from e
 
 
 def register(mcp: FastMCP) -> None:
@@ -64,9 +77,9 @@ def register(mcp: FastMCP) -> None:
 
         Args:
             cert_name: Name to assign to the certificate
-            cert_data: Base64-encoded certificate file content
+            cert_data: Base64-encoded PEM bundle containing key, leaf, and chain
             cert_type: Deprecated compatibility field; pem or p12
-            password: Optional passphrase protecting the certificate file
+            password: PFX password used when the certificate was generated
             replace: Replace an existing certificate with the same name
             api_version: API interface to use, 2 by default or 1 for compatibility
         """
@@ -76,12 +89,11 @@ def register(mcp: FastMCP) -> None:
             data = validate_base64(cert_data)
         except ValueError as error:
             return f"Error: {error}"
-        params = {"cert": cert_name, "replace": replace}
-        if password:
-            params["password"] = password
         client = require_client()
         if api_version == 1:
-            params["replace"] = int(replace)
+            params = {"cert": cert_name, "replace": int(replace)}
+            if password:
+                params["password"] = password
             resp = client.upload_binary(
                 "addcert",
                 decode_base64(data),
@@ -90,9 +102,19 @@ def register(mcp: FastMCP) -> None:
                 timeout=60,
             )
         else:
-            params["data"] = data
+            # APIv2 addcert accepts the encoded bundle directly.  The password
+            # is required by current firmware even when the PEM bundle is
+            # unencrypted, and replace must be a string.
             resp = client.execute(
-                "addcert", params=params, timeout=60, api_version=2
+                "addcert",
+                params={
+                    "cert": cert_name,
+                    "password": password,
+                    "replace": "1" if replace else "0",
+                    "data": data,
+                },
+                timeout=60,
+                api_version=2,
             )
         return resp.to_text()
 
@@ -132,7 +154,7 @@ def register(mcp: FastMCP) -> None:
                 "addintermediate",
                 decode_base64(data),
                 params={"cert": cert_name},
-                content_type="application/octet-stream",
+                content_type="application/x-www-form-urlencoded",
                 timeout=60,
             )
         else:

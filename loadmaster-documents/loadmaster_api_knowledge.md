@@ -839,7 +839,7 @@ After `alsilicense` completes and the initial password is set, the following ste
 
 | Step | Command | Notes |
 |------|---------|-------|
-| Re-enable API | `access/set?param=enableapi&value=1` | API is disabled after licensing; must be re-enabled |
+| Re-enable API | `access/set?param=enableapi&value=1` | API is disabled after licensing; must be re-enabled. Use `bal` + password (basic auth), not API key. |
 
 ### Management Interface Configuration
 

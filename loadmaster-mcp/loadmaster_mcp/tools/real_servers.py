@@ -9,6 +9,18 @@ from mcp.server.fastmcp import FastMCP
 from ..config import require_client
 
 
+def _rs_selector(vs: str, port: str, prot: str, vs_index: str, rs: str, rsport: str) -> dict[str, str]:
+    if vs_index:
+        params = {"vs": vs_index}
+    elif vs and port and prot:
+        params = {"vs": vs, "port": port, "prot": prot}
+    else:
+        raise ValueError("Provide vs_index or all of vs, port, and prot.")
+    if not rs or not rsport:
+        raise ValueError("Both rs and rsport are required.")
+    return {**params, "rs": rs, "rsport": rsport}
+
+
 def register(mcp: FastMCP) -> None:
     """Register real server tools with the MCP server."""
 
@@ -44,21 +56,7 @@ def register(mcp: FastMCP) -> None:
             follow: Follow VS port - port number to follow
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
-
-        if rs:
-            params["rs"] = rs
-        if rsport:
-            params["rsport"] = rsport
+        params = _rs_selector(vs, port, prot, vs_index, rs, rsport)
         if weight:
             params["Weight"] = weight
         if forward:
@@ -109,21 +107,7 @@ def register(mcp: FastMCP) -> None:
             extra_params: Additional params as 'key1=val1&key2=val2'
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
-
-        if rs:
-            params["rs"] = rs
-        if rsport:
-            params["rsport"] = rsport
+        params = _rs_selector(vs, port, prot, vs_index, rs, rsport)
         if weight:
             params["Weight"] = weight
         if forward:
@@ -168,21 +152,7 @@ def register(mcp: FastMCP) -> None:
             rsport: Real server port
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
-
-        if rs:
-            params["rs"] = rs
-        if rsport:
-            params["rsport"] = rsport
+        params = _rs_selector(vs, port, prot, vs_index, rs, rsport)
 
         resp = client.execute("delrs", params=params)
         return resp.to_text()
@@ -207,21 +177,7 @@ def register(mcp: FastMCP) -> None:
             rsport: Real server port
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
-
-        if rs:
-            params["rs"] = rs
-        if rsport:
-            params["rsport"] = rsport
+        params = _rs_selector(vs, port, prot, vs_index, rs, rsport)
         params["Enable"] = "Y"
 
         resp = client.execute("modrs", params=params)
@@ -247,21 +203,7 @@ def register(mcp: FastMCP) -> None:
             rsport: Real server port
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
-
-        if rs:
-            params["rs"] = rs
-        if rsport:
-            params["rsport"] = rsport
+        params = _rs_selector(vs, port, prot, vs_index, rs, rsport)
         params["Enable"] = "N"
 
         resp = client.execute("modrs", params=params)

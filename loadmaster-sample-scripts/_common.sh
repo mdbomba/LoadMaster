@@ -88,6 +88,7 @@ load_license_params() {
   Progress_User="${Progress_User:-}"
   Progress_Pass="${Progress_Pass:-}"
   Order_Id="${Order_Id:-}"
+  Non_Free_License_Choice="${Non_Free_License_Choice:-}"
   New_Api_Pass="${New_Api_Pass:-}"
   License_Type="${License_Type:-}"
   ntphost="${ntphost:-}"

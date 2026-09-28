@@ -248,6 +248,7 @@ class LoadMasterClient:
         verify_ssl: bool = False,
         timeout: float = 30.0,
         transport: Optional[httpx.BaseTransport] = None,
+        use_api_v1: bool = False,
     ):
         self.host = host
         self.port = port
@@ -257,6 +258,7 @@ class LoadMasterClient:
         self.verify_ssl = verify_ssl
         self.timeout = timeout
         self._transport = transport
+        self.use_api_v1 = use_api_v1
         self._base_url = f"https://{host}:{port}"
 
     @property
@@ -304,8 +306,16 @@ class LoadMasterClient:
         timeout: Optional[float] = None,
         api_version: Optional[int] = None,
     ) -> LMResponse:
-        """Execute a command, using API v2 unless API v1 is explicitly required."""
-        version = api_version or (1 if command in _API_V1_COMMANDS else 2)
+        """Execute a command, using API v2 unless API v1 is explicitly required.
+
+        A client constructed with use_api_v1=True forces every command to
+        API v1, which the pre-license flow needs because a license is not
+        installed yet and v2 cannot authenticate.
+        """
+        if self.use_api_v1:
+            version = 1
+        else:
+            version = api_version or (1 if command in _API_V1_COMMANDS else 2)
         if version == 1:
             return self.execute_v1(command, params=params, timeout=timeout)
         if version == 2:

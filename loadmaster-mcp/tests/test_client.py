@@ -109,6 +109,45 @@ class ClientTests(unittest.TestCase):
         self.assertEqual(response.status_code, 422)
         self.assertEqual(response.message, "bad type")
 
+    def test_use_api_v1_flag_forces_v1_for_every_command(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(200, content=SUCCESS_XML)
+
+        client = LoadMasterClient(
+            "lm.example",
+            api_key="key",
+            transport=httpx.MockTransport(handler),
+            use_api_v1=True,
+        )
+        # get is normally APIv2, but the flag must force v1 for pre-license use.
+        self.assertTrue(client.get("get", param="version").success)
+        self.assertEqual(requests[0].url.path, "/access/get")
+        self.assertTrue(client.execute("alsilicensetypes").success)
+        self.assertTrue(all(r.url.path.startswith("/access/") for r in requests))
+
+    def test_addcert_v2_sends_encoded_bundle_and_password(self):
+        requests = []
+
+        def handler(request):
+            requests.append(request)
+            return httpx.Response(200, json={"code": 200, "status": "ok"})
+
+        client = LoadMasterClient("lm.example", api_key="key", transport=httpx.MockTransport(handler))
+        self.assertTrue(client.execute("addcert", params={
+            "cert": "vlm99",
+            "password": "pfx-password",
+            "replace": "0",
+            "data": "Y2VydGlmaWNhdGU=",
+        }).success)
+        payload = json.loads(requests[0].content)
+        self.assertEqual(requests[0].url.path, "/accessv2")
+        self.assertEqual(payload["data"], "Y2VydGlmaWNhdGU=")
+        self.assertEqual(payload["password"], "pfx-password")
+        self.assertEqual(payload["apikey"], "key")
+
 
 if __name__ == "__main__":
     unittest.main()

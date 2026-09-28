@@ -11,6 +11,14 @@ from mcp.server.fastmcp import FastMCP
 from ..config import require_client
 
 
+def _vs_selector(vs: str, port: str, prot: str, vs_index: str) -> dict[str, str]:
+    if vs_index:
+        return {"vs": vs_index}
+    if vs and port and prot:
+        return {"vs": vs, "port": port, "prot": prot}
+    raise ValueError("Provide vs_index or all of vs, port, and prot.")
+
+
 def register(mcp: FastMCP) -> None:
     """Register virtual service tools with the MCP server."""
 
@@ -111,16 +119,7 @@ def register(mcp: FastMCP) -> None:
                           not explicitly listed above
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
+        params: dict = _vs_selector(vs, port, prot, vs_index)
 
         if nickname:
             params["NickName"] = nickname
@@ -160,6 +159,9 @@ def register(mcp: FastMCP) -> None:
                     k, v = pair.split("=", 1)
                     params[k.strip()] = v.strip()
 
+        if len(params) == 1 if vs_index else len(params) == 3:
+            raise ValueError("Provide at least one virtual service setting to modify.")
+
         resp = client.execute("modvs", params=params)
         return resp.to_text()
 
@@ -183,16 +185,7 @@ def register(mcp: FastMCP) -> None:
             vs_index: VS index number (alternative to vs+port+prot)
         """
         client = require_client()
-        params: dict = {}
-        if vs_index:
-            params["vs"] = vs_index
-        else:
-            if vs:
-                params["vs"] = vs
-            if port:
-                params["port"] = port
-            if prot:
-                params["prot"] = prot
+        params = _vs_selector(vs, port, prot, vs_index)
 
         resp = client.execute("delvs", params=params)
         return resp.to_text()

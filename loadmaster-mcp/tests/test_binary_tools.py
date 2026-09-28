@@ -196,7 +196,7 @@ class CertificateToolTests(unittest.TestCase):
                 {
                     "cert": "web-cert",
                     "data": encoded,
-                    "replace": True,
+                    "replace": "1",
                     "password": "bundlepass",
                 },
                 60,
