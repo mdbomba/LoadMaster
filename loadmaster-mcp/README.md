@@ -130,16 +130,23 @@ The `.env` file is searched in: current directory, `markdown/`, project root, or
 
 The MCP server communicates with the LoadMaster using both API interfaces:
 
-- **APIv2** (default) — JSON POST to `/accessv2` for all post-license configuration. No URL size limits.
-- **APIv1** (fallback) — GET to `/access/<cmd>?params` for pre-license operations and binary uploads.
+- **APIv2** (default) — JSON POST to `/accessv2` for post-license configuration and base64 file transfers. No URL size limits.
+- **APIv1** (explicit) — requests to `/access/<cmd>` for pre-license operations and raw binary endpoints such as firmware installation.
+
+Mutating requests are not automatically retried through another API interface. This avoids repeating a change after an ambiguous timeout.
+
+Backup and restore tools accept an optional `api_version` argument. API v2 is
+the default and carries file data as base64 JSON. Set `api_version=1` only for
+older-firmware compatibility; the MCP server then converts between base64 and
+the raw API v1 file body without passing binary data through text parsing.
 
 See `loadmaster-documents/loadmaster_api_knowledge.md` for full API architecture documentation.
 
-## Available Tools (156 live management tools + 323 documented API endpoints)
+## Available Tools (153 live management tools + 323 documented API endpoints)
 
 The MCP server provides two types of capabilities:
 
-1. **Live management tools** (156) — Direct actions on a connected LoadMaster (create VS, add RS, set parameters, etc.)
+1. **Live management tools** (153) — Direct actions on a connected LoadMaster (create VS, add RS, set parameters, etc.)
 2. **Documentation search** — Access to 323 per-endpoint API reference docs that the AI can consult for parameter details, examples, and behavior notes
 
 ### Documentation Tools (7)
@@ -174,8 +181,8 @@ The MCP server provides two types of capabilities:
 | `lm_set_parameter` | Set any system parameter |
 | `lm_reboot` | Reboot the LoadMaster |
 | `lm_shutdown` | Shutdown the LoadMaster |
-| `lm_backup` | Create configuration backup |
-| `lm_restore` | Restore from backup |
+| `lm_backup` | Create a base64 configuration backup with integrity metadata |
+| `lm_restore` | Restore base64 backup data with explicit scope and confirmation |
 | `lm_get_datetime` | Get date/time config |
 | `lm_get_firmware_version` | Get firmware versions |
 | `lm_install_patch` | Install firmware patch |
@@ -204,7 +211,7 @@ The MCP server provides two types of capabilities:
 | `lm_enable_real_server` | Enable RS (bring into rotation) |
 | `lm_disable_real_server` | Disable RS (take out of rotation) |
 
-### Certificates (11)
+### Certificates (12)
 
 | Tool | Description |
 |------|-------------|
@@ -213,7 +220,8 @@ The MCP server provides two types of capabilities:
 | `lm_add_certificate` | Upload/install certificate |
 | `lm_delete_certificate` | Delete certificate |
 | `lm_add_intermediate_certificate` | Add intermediate CA cert |
-| `lm_backup_certificates` | Backup all certificates |
+| `lm_backup_certificates` | Backup all certificates with a passphrase |
+| `lm_restore_certificates` | Restore certificate backup data with confirmation |
 | `lm_get_cipher_set` | Get cipher configuration |
 | `lm_set_cipher_set` | Configure cipher set |
 | `lm_list_le_certificates` | List Let's Encrypt / ACME certs |

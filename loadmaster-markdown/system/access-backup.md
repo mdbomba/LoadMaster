@@ -8,58 +8,45 @@
 
 Downloads a LoadMaster configuration backup bundle from the appliance.
 
-## Endpoint
+## APIv1 Endpoint
 
 ```text
-GET https://<host>:<port>/access/backup?path=<path>[&...]
+GET https://<host>:<port>/access/backup
 ```
 
-## HTTP Method
-
-`GET` — read/query operation.
-
-## Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `path` | string | Yes | Local file path supplied to the PowerShell cmdlet; represented as uploaded or downloaded content in REST usage. |
-| `force` | boolean | No | Force value for this command. |
-
-## Example Request
+The command has no backup-specific request parameters. The `Path` and `Force`
+options exposed by the PowerShell cmdlet control the local output file and are
+not REST parameters.
 
 ```bash
-curl -sk -u "bal:PASSWORD" "https://10.0.0.69:443/access/backup?path=example" -o backup.out
+curl -sk -u "bal:PASSWORD" "https://10.0.0.69:443/access/backup" \
+  -o LoadMaster-backup
 ```
 
-## Example Response (XML)
+On success, APIv1 returns `application/octet-stream` with the backup bytes. Use
+the client output option, such as curl's `-o`, to choose a local filename. API
+errors are returned as XML.
 
-```xml
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<Response stat="200" code="ok">
-  <Success>
-    <Data>
-      <!-- backup fields -->
-    </Data>
-  </Success>
-</Response>
-```
-
-
-## Example Request (APIv2)
+## APIv2 Request
 
 ```bash
 curl -sk -X POST "https://10.0.0.69:443/accessv2" \
   -H "Content-Type: application/json" \
-  -d '{"apiuser":"bal","apipass":"PASSWORD","cmd":"backup","path":"example","force":"1"}'
+  -d '{"apiuser":"bal","apipass":"PASSWORD","cmd":"backup"}'
+```
+
+APIv2 returns the backup as base64 in the JSON `data` field:
+
+```json
+{"code":200,"data":"<base64-encoded backup>","status":"ok"}
 ```
 
 ## Notes
 
-- API v1 responses are XML. Do not expect JSON payloads from the main response body.
-- This is a safe read/query operation and does not modify appliance state.
+- This operation reads configuration and does not change appliance state.
+- `backupcert` creates a separate certificate backup.
 
 ## See Also
 
-- `access/reboot` — handles reboot
-- `access/shutdown` — handles shutdown
-- `access/restore` — restores a previously exported LoadMaster configuration backup to the appliance
+- `access/restore` - restores a configuration backup
+- `access/backupcert` - backs up certificates separately

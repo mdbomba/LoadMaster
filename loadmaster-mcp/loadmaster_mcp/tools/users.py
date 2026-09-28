@@ -120,28 +120,21 @@ def register(mcp: FastMCP) -> None:
         return resp.to_text()
 
     @mcp.tool()
-    def lm_generate_api_key(user: str = "") -> str:
-        """Generate a new API security key.
-
-        Args:
-            user: Optional user to associate the key with
-        """
+    def lm_generate_api_key() -> str:
+        """Generate a new API key for the authenticated user."""
         client = require_client()
-        params: dict = {}
-        if user:
-            params["user"] = user
-        resp = client.execute("generateapikey", params=params if params else None)
+        resp = client.execute("addapikey")
         return resp.to_text()
 
     @mcp.tool()
-    def lm_revoke_api_key(key_id: str) -> str:
+    def lm_revoke_api_key(key: str) -> str:
         """Revoke/delete an API security key.
 
         Args:
-            key_id: The API key ID to revoke
+            key: The complete API key value to revoke
         """
         client = require_client()
-        resp = client.execute("delapikey", params={"keyid": key_id})
+        resp = client.execute("delapikey", params={"key": key})
         return resp.to_text()
 
     # --- WUI Security ---

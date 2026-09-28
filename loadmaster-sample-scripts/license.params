@@ -1,7 +1,7 @@
 Api_User='bal'
-Api_Pass=''
+Api_Pass='Kemp1fourall'
 New_Api_Pass=''
-Api_Ip='10.0.0.14'
+Api_Ip='10.0.0.90'
 Api_Port='443'
 Vm_Name='14_vlm14'
 Progress_User=''      # Only used to generate licenses

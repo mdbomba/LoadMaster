@@ -6,62 +6,46 @@
 
 ## Description
 
-Restores a certificate backup onto the appliance.
-
-## Endpoint
-
-```text
-POST https://<host>:<port>/access/restorecert?password=<password>&type=<type>[&...]
-```
-
-## HTTP Method
-
-`POST` — write/modify operation.
+Restores certificates from an encrypted certificate backup.
 
 ## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `password` | string | Yes | Password value associated with the command. |
-| `path` | string | No | Local file path supplied to the PowerShell cmdlet; represented as uploaded or downloaded content in REST usage. |
-| `type` | string | Yes | Type value for this command. |
+| `password` | string | Yes | Passphrase used to create the backup; 7-64 ASCII alphanumeric characters |
+| `type` | string | Yes | `full`, `third`, or `vs` (case-sensitive) |
+| `data` | base64 string | APIv2 only | Base64-encoded certificate backup bytes |
 
-## Example Request
+`full` restores Virtual Service and intermediate certificates, `third` restores
+intermediate certificates only, and `vs` restores Virtual Service certificates
+only.
+
+## APIv1 Endpoint
+
+```text
+POST https://<host>:<port>/access/restorecert?password=<password>&type=<type>
+```
 
 ```bash
-curl -sk -u "bal:PASSWORD" -X POST --data-binary "@cert-backup.tar.gz" "https://10.0.0.69:443/access/restorecert?password=SecretPass!&type=example"
+curl -sk -u "bal:PASSWORD" -X POST \
+  --data-binary "@LoadMaster-certificates" \
+  "https://10.0.0.69:443/access/restorecert?password=SecretPass1&type=full"
 ```
 
-## Example Response (XML)
-
-```xml
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<Response stat="200" code="ok">
-  <Success>
-    <Data>
-      <!-- restorecert operation completed -->
-    </Data>
-  </Success>
-</Response>
-```
-
-
-## Example Request (APIv2)
+## APIv2 Request
 
 ```bash
 curl -sk -X POST "https://10.0.0.69:443/accessv2" \
   -H "Content-Type: application/json" \
-  -d '{"apiuser":"bal","apipass":"PASSWORD","cmd":"restorecert","password":"example","path":"example","type":"allow"}'
+  -d '{"apiuser":"bal","apipass":"PASSWORD","cmd":"restorecert","password":"SecretPass1","type":"full","data":"<base64-encoded backup>"}'
 ```
 
 ## Notes
 
-- API v1 responses are XML. Do not expect JSON payloads from the main response body.
-- Certificate and licensing workflows can take noticeably longer than simple queries. A client timeout of `max_time=60` is recommended.
-- Although the legacy API is query-string driven, document new automation as a write operation because it changes appliance state.
+- Restore changes the appliance certificate store. Select the scope explicitly.
+- A 60-second or longer client timeout is recommended.
 
 ## See Also
 
-- `access/readcert` — retrieves the details or contents of a stored certificate
-- `access/backupcert` — downloads a certificate backup from the appliance
-- `access/addintermediate` — creates TLS intermediate certificate
+- `access/backupcert` - creates a certificate backup
+- `access/addcert` - uploads one certificate file

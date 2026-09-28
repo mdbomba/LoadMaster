@@ -6,62 +6,47 @@
 
 ## Description
 
-Uploads a certificate bundle to the appliance certificate store.
-
-## Endpoint
-
-```text
-POST https://<host>:<port>/access/addcert?name=<name>&path=<path>[&...]
-```
-
-## HTTP Method
-
-`POST` — write/modify operation.
+Uploads a certificate file to the LoadMaster certificate store. When uploading
+a certificate and private key, place both in the same input file.
 
 ## Parameters
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `name` | string | Yes | Object name used by the command. |
-| `password` | string | No | Password value associated with the command. |
-| `replace` | boolean | No | Set to replace an existing stored object with the same name. |
-| `path` | string | Yes | Local file path supplied to the PowerShell cmdlet; represented as uploaded or downloaded content in REST usage. |
+| `cert` | string | Yes | Name used to identify the certificate on LoadMaster |
+| `password` | string | No | Passphrase protecting the uploaded certificate file |
+| `replace` | boolean | No | Replace a certificate with the same name |
+| `data` | base64 string | APIv2 only | Base64-encoded certificate file bytes |
 
-## Example Request
+## APIv1 Endpoint
+
+```text
+POST https://<host>:<port>/access/addcert?cert=<name>&password=<password>&replace=<0-or-1>
+```
+
+Send the certificate file bytes as the request body:
 
 ```bash
-curl -sk -u "bal:PASSWORD" -X POST --data-binary "@server-cert.pem" "https://10.0.0.69:443/access/addcert?name=example-name&path=example"
+curl -sk -u "bal:PASSWORD" -X POST \
+  --data-binary "@server-cert.pem" \
+  "https://10.0.0.69:443/access/addcert?cert=example-name&replace=0"
 ```
 
-## Example Response (XML)
-
-```xml
-<?xml version="1.0" encoding="ISO-8859-1"?>
-<Response stat="200" code="ok">
-  <Success>
-    <Data>
-      <!-- addcert operation completed -->
-    </Data>
-  </Success>
-</Response>
-```
-
-
-## Example Request (APIv2)
+## APIv2 Request
 
 ```bash
 curl -sk -X POST "https://10.0.0.69:443/accessv2" \
   -H "Content-Type: application/json" \
-  -d '{"apiuser":"bal","apipass":"PASSWORD","cmd":"addcert","name":"example-name","password":"example","replace":"1","path":"example"}'
+  -d '{"apiuser":"bal","apipass":"PASSWORD","cmd":"addcert","cert":"example-name","replace":false,"data":"<base64-encoded certificate file>"}'
 ```
 
 ## Notes
 
-- API v1 responses are XML. Do not expect JSON payloads from the main response body.
-- Certificate and licensing workflows can take noticeably longer than simple queries. A client timeout of `max_time=60` is recommended.
-- Although the legacy API is query-string driven, document new automation as a write operation because it changes appliance state.
+- APIv1 returns XML. APIv2 returns JSON.
+- A 60-second or longer client timeout is recommended for certificate operations.
+- `Path` is a local PowerShell option, not a REST parameter.
 
 ## See Also
 
-- `access/delcert` — removes TLS certificate
-- `access/listcert` — lists certificates stored on the appliance
+- `access/delcert` - removes a certificate
+- `access/listcert` - lists stored certificates

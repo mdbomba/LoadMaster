@@ -20,18 +20,19 @@ def register(mcp: FastMCP) -> None:
         return resp.to_text()
 
     @mcp.tool()
-    def lm_waf_install_rules(rules_data: str) -> str:
-        """Install/update the WAF rules database.
+    def lm_waf_install_rules(rules_data: str = "") -> str:
+        """Install the WAF rules database previously downloaded by LoadMaster.
 
         Args:
-            rules_data: WAF rules database content (base64 encoded)
+            rules_data: Deprecated. Direct WAF database upload is not supported.
         """
+        if rules_data:
+            return (
+                "Error: rules_data is no longer accepted because the documented "
+                "maninstallwafrules command does not upload a request body"
+            )
         client = require_client()
-        resp = client.post(
-            "installwafrules",
-            data=rules_data.encode("utf-8"),
-            content_type="application/octet-stream",
-        )
+        resp = client.execute("maninstallwafrules")
         return resp.to_text()
 
     @mcp.tool()

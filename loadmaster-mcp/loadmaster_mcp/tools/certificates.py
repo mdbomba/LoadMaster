@@ -4,9 +4,30 @@ Certificate Management Tools
 Tools for managing TLS/SSL certificates on the LoadMaster.
 """
 
+import base64
+from typing import Annotated, Literal
+
 from mcp.server.fastmcp import FastMCP
+from pydantic import Field
 
 from ..config import require_client
+from ._binary import (
+    decode_base64,
+    format_binary_result,
+    validate_base64,
+    validate_certificate_password,
+)
+
+
+CertificatePassword = Annotated[
+    str,
+    Field(
+        min_length=7,
+        max_length=64,
+        pattern=r"^[A-Za-z0-9]+$",
+        description="Case-sensitive ASCII alphanumeric passphrase",
+    ),
+]
 
 
 def register(mcp: FastMCP) -> None:
@@ -31,22 +52,48 @@ def register(mcp: FastMCP) -> None:
         return resp.to_text()
 
     @mcp.tool()
-    def lm_add_certificate(cert_name: str, cert_data: str, cert_type: str = "pem") -> str:
+    def lm_add_certificate(
+        cert_name: str,
+        cert_data: str,
+        cert_type: str = "pem",
+        password: str = "",
+        replace: bool = False,
+        api_version: Literal[1, 2] = 2,
+    ) -> str:
         """Upload and install a TLS certificate.
 
         Args:
             cert_name: Name to assign to the certificate
-            cert_data: Certificate content (PEM or PKCS12 base64 encoded)
-            cert_type: Certificate type - 'pem' or 'p12' (default: pem)
+            cert_data: Base64-encoded certificate file content
+            cert_type: Deprecated compatibility field; pem or p12
+            password: Optional passphrase protecting the certificate file
+            replace: Replace an existing certificate with the same name
+            api_version: API interface to use, 2 by default or 1 for compatibility
         """
+        if cert_type not in {"pem", "p12"}:
+            return "Error: cert_type must be pem or p12"
+        try:
+            data = validate_base64(cert_data)
+        except ValueError as error:
+            return f"Error: {error}"
+        params = {"cert": cert_name, "replace": replace}
+        if password:
+            params["password"] = password
         client = require_client()
-        params = {"cert": cert_name, "type": cert_type}
-        resp = client.post(
-            "addcert",
-            params=params,
-            data=cert_data.encode("utf-8"),
-            content_type="application/x-www-form-urlencoded",
-        )
+        if api_version == 1:
+            params["replace"] = int(replace)
+            resp = client.upload_binary(
+                "addcert",
+                decode_base64(data),
+                params=params,
+                content_type="application/octet-stream",
+                timeout=60,
+            )
+        else:
+            params["data"] = data
+            resp = client.execute(
+                "addcert", params=params, timeout=60, api_version=2
+            )
         return resp.to_text()
 
     @mcp.tool()
@@ -63,28 +110,122 @@ def register(mcp: FastMCP) -> None:
         return resp.to_text()
 
     @mcp.tool()
-    def lm_add_intermediate_certificate(cert_name: str, cert_data: str) -> str:
+    def lm_add_intermediate_certificate(
+        cert_name: str,
+        cert_data: str,
+        api_version: Literal[1, 2] = 2,
+    ) -> str:
         """Upload an intermediate CA certificate.
 
         Args:
             cert_name: Name to assign to the intermediate certificate
-            cert_data: Certificate content (PEM format)
+            cert_data: Base64-encoded certificate file content
+            api_version: API interface to use, 2 by default or 1 for compatibility
         """
+        try:
+            data = validate_base64(cert_data)
+        except ValueError as error:
+            return f"Error: {error}"
         client = require_client()
-        params = {"cert": cert_name}
-        resp = client.post(
-            "addintermediate",
-            params=params,
-            data=cert_data.encode("utf-8"),
-            content_type="application/x-www-form-urlencoded",
-        )
+        if api_version == 1:
+            resp = client.upload_binary(
+                "addintermediate",
+                decode_base64(data),
+                params={"cert": cert_name},
+                content_type="application/octet-stream",
+                timeout=60,
+            )
+        else:
+            resp = client.execute(
+                "addintermediate",
+                params={"cert": cert_name, "data": data},
+                timeout=60,
+                api_version=2,
+            )
         return resp.to_text()
 
     @mcp.tool()
-    def lm_backup_certificates() -> str:
-        """Backup all certificates on the LoadMaster."""
+    def lm_backup_certificates(
+        password: CertificatePassword, api_version: Literal[1, 2] = 2
+    ) -> str:
+        """Backup all certificates using an alphanumeric passphrase.
+
+        Args:
+            password: Case-sensitive, 7-64 ASCII alphanumeric characters
+            api_version: API interface to use, 2 by default or 1 for compatibility
+        """
+        try:
+            password = validate_certificate_password(password)
+        except ValueError as error:
+            return f"Error: {error}"
         client = require_client()
-        resp = client.get("backupcert")
+        if api_version == 1:
+            download = client.download_binary(
+                "backupcert", params={"password": password}, timeout=60
+            )
+            if not download.success:
+                return f"Error (code {download.status_code}): {download.message}"
+            return format_binary_result(
+                base64.b64encode(download.content).decode("ascii"),
+                download.filename,
+            )
+        resp = client.execute(
+            "backupcert",
+            params={"password": password},
+            timeout=60,
+            api_version=2,
+        )
+        if not resp.success:
+            return resp.to_text()
+        data = resp.data.get("data")
+        if not isinstance(data, str):
+            return "Error: LoadMaster certificate backup response did not contain base64 data"
+        try:
+            return format_binary_result(data)
+        except ValueError as error:
+            return f"Error: LoadMaster returned invalid certificate backup data: {error}"
+
+    @mcp.tool()
+    def lm_restore_certificates(
+        backup_data: str,
+        password: CertificatePassword,
+        restore_type: Literal["full", "third", "vs"],
+        confirm_restore: bool,
+        api_version: Literal[1, 2] = 2,
+    ) -> str:
+        """Restore a certificate backup.
+
+        Args:
+            backup_data: The base64 data field returned by lm_backup_certificates
+            password: The alphanumeric passphrase used to create the backup
+            restore_type: Restore scope: full, third, or vs
+            confirm_restore: Must be true to authorize the certificate-store change
+            api_version: API interface to use, 2 by default or 1 for compatibility
+        """
+        if restore_type not in {"full", "third", "vs"}:
+            return "Error: restore_type must be one of: full, third, vs"
+        if not confirm_restore:
+            return "Error: confirm_restore must be true to restore certificates"
+        try:
+            password = validate_certificate_password(password)
+            data = validate_base64(backup_data)
+        except ValueError as error:
+            return f"Error: {error}"
+        client = require_client()
+        params = {"password": password, "type": restore_type}
+        if api_version == 1:
+            resp = client.upload_binary(
+                "restorecert",
+                decode_base64(data),
+                params=params,
+                content_type="application/octet-stream",
+                timeout=60,
+            )
+        else:
+            params["data"] = data
+            resp = client.execute(
+                "restorecert", params=params, timeout=60, api_version=2
+            )
         return resp.to_text()
 
     @mcp.tool()

@@ -6,6 +6,9 @@ set -euo pipefail
 #
 # Configure via license.params or environment variables:
 #   Api_Ip, Api_User, Api_Pass (or New_Api_Pass)
+# Optional cert overrides:
+#   CERTS_DIR, MGMT_CERT_PFX, MGMT_CERT_NAME, MGMT_CERT_PASSWORD,
+#   ICA_CERT_FILE, RCA_CERT_FILE
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../_common.sh"
@@ -14,6 +17,13 @@ load_license_params
 
 Api_Pass="${New_Api_Pass:-$Api_Pass}"
 BASE="$(api_base)"
+
+CERTS_DIR="${CERTS_DIR:-/home/chef/repos/certs}"
+MGMT_CERT_PFX="${MGMT_CERT_PFX:-${CERTS_DIR}/vlm90.pfx}"
+MGMT_CERT_NAME="${MGMT_CERT_NAME:-vlm90}"
+MGMT_CERT_PASSWORD="${MGMT_CERT_PASSWORD:-password}"
+ICA_CERT_FILE="${ICA_CERT_FILE:-${CERTS_DIR}/vlm90_ica.crt}"
+RCA_CERT_FILE="${RCA_CERT_FILE:-${CERTS_DIR}/vlm90_rca.crt}"
 
 apiv2() {
   local body="$1"
@@ -46,6 +56,62 @@ set_param() {
   else
     echo ""
     echo "  WARNING: Failed to set ${param}: $(echo "$resp" | grep -o '"message":"[^"]*"')" >&2
+  fi
+}
+
+apiv2_status_ok() {
+  local resp="$1"
+  local status
+  status="$(echo "$resp" | jq -r '.status // empty' 2>/dev/null || true)"
+  if [[ "$status" == "ok" ]]; then
+    return 0
+  fi
+  local code
+  code="$(echo "$resp" | jq -r '.code // empty' 2>/dev/null || true)"
+  [[ "$code" == "200" ]]
+}
+
+apiv2_message() {
+  local resp="$1"
+  echo "$resp" | jq -r '.message // .Error // empty' 2>/dev/null || true
+}
+
+upload_cert_blob() {
+  local cmd="$1"
+  local cert_name="$2"
+  local cert_file="$3"
+  local password="${4:-}"
+
+  if [[ ! -f "$cert_file" ]]; then
+    echo ""
+    echo "  WARNING: Missing certificate file: $cert_file" >&2
+    return
+  fi
+
+  local b64
+  b64="$(base64 < "$cert_file" | tr -d '\n')"
+
+  local body
+  if [[ -n "$password" ]]; then
+    body="{\"apiuser\":\"${Api_User}\",\"apipass\":\"${Api_Pass}\",\"cmd\":\"${cmd}\",\"cert\":\"${cert_name}\",\"password\":\"${password}\",\"replace\":\"0\",\"data\":\"${b64}\"}"
+  else
+    body="{\"apiuser\":\"${Api_User}\",\"apipass\":\"${Api_Pass}\",\"cmd\":\"${cmd}\",\"cert\":\"${cert_name}\",\"replace\":\"0\",\"data\":\"${b64}\"}"
+  fi
+
+  local resp
+  resp="$(apiv2 "$body")"
+  if apiv2_status_ok "$resp"; then
+    end_step_ok "$cert_name"
+    return
+  fi
+
+  local msg
+  msg="$(apiv2_message "$resp")"
+  if echo "$msg" | grep -Eiq 'already|exists|duplicate'; then
+    end_step_ok "already installed"
+  else
+    echo ""
+    echo "  WARNING: Failed to run ${cmd} for ${cert_name}: ${msg:-unknown error}" >&2
   fi
 }
 
@@ -98,6 +164,25 @@ else
 fi
 
 echo ""
+echo "-- Management Certificate Install --"
+begin_step "Uploading management cert ${MGMT_CERT_NAME}"
+upload_cert_blob "addcert" "$MGMT_CERT_NAME" "$MGMT_CERT_PFX" "$MGMT_CERT_PASSWORD"
+
+begin_step "Installing intermediate/root chain"
+upload_cert_blob "addintermediate" "$(basename "$ICA_CERT_FILE" .crt | tr '[:lower:]' '[:upper:]')" "$ICA_CERT_FILE"
+begin_step "Installing root CA"
+upload_cert_blob "addintermediate" "$(basename "$RCA_CERT_FILE" .crt | tr '[:lower:]' '[:upper:]')" "$RCA_CERT_FILE"
+
+echo ""
+echo "-- Binding Management Certificate --"
+set_param "admincert" "$MGMT_CERT_NAME" "admin interface certificate"
+
+HAMODE=$(apiv2 "{\"apiuser\":\"${Api_User}\",\"apipass\":\"${Api_Pass}\",\"cmd\":\"get\",\"param\":\"hamode\"}" | jq -r '.hamode // ""')
+if [[ -n "$HAMODE" && "$HAMODE" != "0" ]]; then
+  set_param "localcert" "$MGMT_CERT_NAME" "HA local interface certificate"
+fi
+
+echo ""
 echo "-- Disable GEO (port 53 listener) --"
 begin_step "Disabling GEO"
 RESP=$(apiv2 "{\"apiuser\":\"${Api_User}\",\"apipass\":\"${Api_Pass}\",\"cmd\":\"disablegeo\"}")
@@ -111,7 +196,6 @@ echo ""
 echo "=== STIG Hardening Complete ==="
 echo ""
 echo "Manual steps remaining:"
-echo "  - Upload and assign TLS management certificate"
 echo "  - Configure warning banners (WUIPreauth, SSHPreAuth)"
 echo "  - Configure NTP with authentication"
 echo "  - Create certificate-based admin users"

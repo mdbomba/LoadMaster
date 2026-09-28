@@ -71,10 +71,10 @@ Remove-Variable * -ErrorAction SilentlyContinue
 [string]$FIPS2 = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:AES256-GCM-SHA384:AES256-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:AES128-GCM-SHA256:AES128-SHA256"
 #
 ##### OPTIONAL PARAMETERS - IF ENTERED HERE WILL NOT BE PROMPTED FOR LATER #####
-[array]$iplist = '10.0.0.36'               # If set to '', you will be prompted for a list of LoadMaster IP addresses
+[array]$iplist = '10.0.0.90'               # If set to '', you will be prompted for a list of LoadMaster IP addresses
 [string]$port = '443'                      # If set to '', you will be prompted for the LoadMaster API port number
 [string]$lmadmin = 'bal'                   # if set to '', you will be prompted for a LoadMaster amin account
-[string]$lmadminpass = '<CHANGE_ME_PASSWORD>'      # if set to '', you will be prompted for the LoadMaster admin account password 
+[string]$lmadminpass = 'Kemp1fourall'      # if set to '', you will be prompted for the LoadMaster admin account password 
   
 ############## END OF CONFIGURATION SECTION #################
 #############################################################
