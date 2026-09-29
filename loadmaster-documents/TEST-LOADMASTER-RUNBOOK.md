@@ -83,8 +83,8 @@ Use APIv1 for pre-license actions and APIv2 after licensing.
 2. Read the Progress account from `~/.secrets/progress-id.info` only at runtime.
 3. Query `alsilicensetypes`, select the Free license ID returned for that account,
    and submit it to `alsilicense`.
-4. Set the initial `bal` password. The test default is `Kemp1fourall` unless the
-   user specifies another password.
+4. Set the initial `bal` password using the value supplied at runtime or stored
+   as `LM_FACTORY_PASS` or `Api_Pass` in `~/.secrets/loadmaster.params`.
 5. Re-enable the API with `set enableapi=yes` after the post-license restart.
 6. Set DNS, NTP, hostname, and both interface addresses. For the validated
    instance, set `eth0` to `10.0.0.99/24`, `eth1` to `10.1.0.99/24`, and

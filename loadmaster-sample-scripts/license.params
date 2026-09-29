@@ -1,12 +1,11 @@
-# Template values only. Copy to ~/.secrets/loadmaster.params and fill in,
-# or set LICENSE_PARAMS_FILE to point at your own file. Real credentials
-# must not be committed to this repository.
+# Template values only. Real values belong in ~/.secrets/loadmaster.params
+# or the generated project params file, never in this repository.
 
 Api_User='bal'
 Api_Pass=''
-# Test-only bootstrap password. Change the bal password as soon as possible
-# after licensing and do not use this value outside a disposable test VM.
-New_Api_Pass='Kemp1fourall'
+# Initial password used by the MCP pre-license tools, if configured.
+LM_FACTORY_PASS=''
+New_Api_Pass=''
 # Management IP of the LoadMaster. Derive the VM name and hostname from the
 # last octet: 10.0.0.99 means Vm_Name 99_vlm99 and hostname vlm99.
 Api_Ip=''

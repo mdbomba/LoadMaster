@@ -27,7 +27,7 @@ GET https://<host>:<port>/access/listapikeys?apikey=<apikey>
 ## Example Request
 
 ```bash
-curl -sk -u "bal:PASSWORD" "https://10.0.0.69:443/access/listapikeys?apikey=0123456789abcdef0123456789abcdef"
+curl -sk -u "bal:PASSWORD" "https://LOADMASTER_HOST:443/access/listapikeys?apikey=YOUR_API_KEY"
 ```
 
 ## Example Response (XML)

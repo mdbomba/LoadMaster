@@ -122395,7 +122395,7 @@ When running PowerShell commands, either authenticate using the username (Creden
 			<maml:introduction>
 				<maml:paragraph>PS C:\&gt;</maml:paragraph>
 			</maml:introduction>
-			<dev:code>Set-LicenseInitialPassword -Passwd 2fourall</dev:code>
+			<dev:code>Set-LicenseInitialPassword -Passwd &lt;NewPassword&gt;</dev:code>
 			<dev:remarks>
 				<maml:para />
 				<maml:para />
@@ -140494,7 +140494,7 @@ When running PowerShell commands, either authenticate using the username (Creden
 			<maml:introduction>
 				<maml:paragraph>PS C:\&gt;</maml:paragraph>
 			</maml:introduction>
-			<dev:code>Set-SecSystemUserPassword -CurrPassword 1fourall -Password 2fourall</dev:code>
+			<dev:code>Set-SecSystemUserPassword -CurrPassword &lt;CurrentPassword&gt; -Password &lt;NewPassword&gt;</dev:code>
 			<dev:remarks>
 				<maml:para />
 				<maml:para />

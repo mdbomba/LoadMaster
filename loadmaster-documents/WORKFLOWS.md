@@ -28,10 +28,10 @@ For brevity, examples below show only the JSON body.
 
 This flow uses APIv1 because the appliance is not fully initialized until licensed.
 
-For repository test runs, use `Kemp1fourall` as the disposable initial `bal`
-password unless the user specifies another value. For a deployment not
-explicitly identified as a test, prompt the operator for a new `bal` password
-before licensing begins, regardless of image or license type.
+For repository test runs, obtain the initial `bal` password at runtime or from
+`LM_FACTORY_PASS` or `Api_Pass` in `~/.secrets/loadmaster.params`. For a
+deployment not explicitly identified as a test, prompt the operator for a new
+`bal` password before licensing begins, regardless of image or license type.
 
 For the vendor Free image, select the Free license type. If the user explicitly
 deploys a non-Free image, ask whether they want a `trial` or `paid` license.

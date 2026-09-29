@@ -16,13 +16,16 @@ LM_HOST when the VM has a DHCP-assigned address.
 
 Licensing tools accept an optional host override so they can target an
 unlicensed appliance at its DHCP address (different from LM_HOST in .env).
-When host is provided, a temporary client is created with factory-default
-credentials (bal / 1fourall).
+When host is provided, a temporary client uses configured factory credentials
+from ~/.secrets/loadmaster.params or an interactive password prompt.
 """
 
+import getpass
 import json
+import os
 import re
 import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
 
@@ -31,12 +34,28 @@ from mcp.server.fastmcp import FastMCP
 from ..client import LoadMasterClient
 from ..config import require_client, get_client, LMConfig
 
-# Factory-default credentials for an unlicensed LoadMaster.
-# These are well-known public defaults shipped with every LoadMaster appliance
-# and are not secrets.  They are only used to communicate with an unlicensed
-# appliance before the admin sets a real password.
+# Factory-default username for an unlicensed LoadMaster. The corresponding
+# password is supplied at runtime or read from ~/.secrets/loadmaster.params.
 _FACTORY_USER = "bal"
-_FACTORY_PASS = "1fourall"
+
+
+def _get_factory_password(password: str = "") -> str:
+    """Get the unlicensed appliance password without a source-code default."""
+    configured = (
+        password
+        or os.environ.get("LM_FACTORY_PASS", "")
+        or os.environ.get("Api_Pass", "")
+    )
+    if configured:
+        return configured
+    if sys.stdin.isatty():
+        configured = getpass.getpass("Initial LoadMaster bal password: ")
+        if configured:
+            return configured
+    raise RuntimeError(
+        "Initial LoadMaster password is not configured. Set LM_FACTORY_PASS "
+        "in ~/.secrets/loadmaster.params or run from an interactive terminal."
+    )
 
 
 def _make_client(host: str = "", password: str = "") -> LoadMasterClient:
@@ -51,12 +70,23 @@ def _make_client(host: str = "", password: str = "") -> LoadMasterClient:
             host=host,
             port=443,
             username=_FACTORY_USER,
-            password=password or _FACTORY_PASS,
+            password=_get_factory_password(password),
             verify_ssl=False,
             timeout=30.0,
             use_api_v1=True,
         )
-    return require_client()
+    client = require_client()
+    if client.api_key or client.password:
+        return client
+    return LoadMasterClient(
+        host=client.host,
+        port=client.port,
+        username=client.username or _FACTORY_USER,
+        password=_get_factory_password(),
+        verify_ssl=client.verify_ssl,
+        timeout=client.timeout,
+        use_api_v1=True,
+    )
 
 
 def _make_prelicense_client(host: str = "", password: str = "") -> LoadMasterClient:

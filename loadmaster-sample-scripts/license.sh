@@ -10,7 +10,7 @@ echo ""
 if [[ -z "$Api_User" ]]; then
  read -p "Enter admin account for api access: " Api_User
 fi
-# Default for a new (unlicensed) applaince is 1fourall
+# Prompt for the initial appliance password when it is not configured locally.
 if [[ -z "$Api_Pass" ]]; then
  read -s -p "Enter password for $Api_User for api access: " Api_Pass
  echo
@@ -130,4 +130,3 @@ uri="https://${ipport}/access/set_initial_passwd?passwd=${New_Api_Pass}"
 out=$(curl -s -k -u "${Api_User}:${Api_Pass}" "$uri")
 code=$(xmllint --xpath 'string(/Response/@code)' - <<<"$out")
 echo "Resetting bal password - Results = $code"
-

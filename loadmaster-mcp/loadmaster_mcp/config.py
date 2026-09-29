@@ -97,6 +97,7 @@ class LMConfig:
             LM_PORT: API port (default: 443)
             LM_USERNAME: API username (default: bal)
             LM_PASSWORD: API password
+            LM_FACTORY_PASS: Password used for a fresh unlicensed appliance
             LM_API_KEY: API key (alternative to username/password)
             LM_VERIFY_SSL: Verify SSL certificates (default: false)
             LM_TIMEOUT: Request timeout in seconds (default: 30)

@@ -74,7 +74,7 @@ Remove-Variable * -ErrorAction SilentlyContinue
 [array]$iplist = '10.0.0.90'               # If set to '', you will be prompted for a list of LoadMaster IP addresses
 [string]$port = '443'                      # If set to '', you will be prompted for the LoadMaster API port number
 [string]$lmadmin = 'bal'                   # if set to '', you will be prompted for a LoadMaster amin account
-[string]$lmadminpass = 'Kemp1fourall'      # if set to '', you will be prompted for the LoadMaster admin account password 
+[string]$lmadminpass = ''      # if set to '', you will be prompted for the LoadMaster admin account password
   
 ############## END OF CONFIGURATION SECTION #################
 #############################################################

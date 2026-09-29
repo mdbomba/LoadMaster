@@ -38,12 +38,13 @@ For test deployments, configure the second NIC (`eth1`) with
 `10.1.0.<last-octet>/24`. For example, a VM with management IP `10.0.0.99`
 uses `10.1.0.99/24` on `eth1`.
 
-When testing this repository, use `Kemp1fourall` as the initial `bal` password
-unless the user supplies a different value. After building or licensing a test
-LoadMaster, clearly instruct the user to change this bootstrap password as soon
-as possible. For every LoadMaster deployment not explicitly identified as a
-test, prompt the user for the new `bal` password before starting licensing,
-regardless of the image or license type.
+When testing this repository, obtain the initial `bal` password at runtime or
+from `LM_FACTORY_PASS` (or `Api_Pass`) in `~/.secrets/loadmaster.params`. Never
+place it in this repository. After building or licensing a test LoadMaster,
+clearly instruct the user to change the bootstrap password as soon as possible.
+For every LoadMaster deployment not explicitly identified as a test, prompt the
+user for the new `bal` password before starting licensing, regardless of the
+image or license type.
 
 When credentials or other secrets are required, include `~/.secrets` in the
 search scope. Never copy secrets, private keys, tokens, or generated passwords

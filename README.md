@@ -176,8 +176,10 @@ images use the same Progress account credentials, but require a `trial` or
 flow requires a valid Progress Order ID and stops before licensing when none is
 provided.
 
-The test-only initial `bal` password is `Kemp1fourall`. Change it as soon as
-possible after the appliance is licensed; do not use it for non-test systems.
+The initial `bal` password for a fresh test appliance must be supplied at
+runtime or through `LM_FACTORY_PASS` (or `Api_Pass`) in
+`~/.secrets/loadmaster.params`. Change it as soon as possible after licensing;
+do not use a bootstrap password for non-test systems.
 For a deployment that is not explicitly a test, the operator must supply a new
 `bal` password before licensing begins, regardless of image or license type.
 

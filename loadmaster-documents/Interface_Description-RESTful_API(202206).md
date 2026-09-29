@@ -1942,13 +1942,11 @@ oldest is deleted.
 When you have an API key, you can perform any command as normal, but you no longer need the
 username or password. For example:
 
-https://<LoadMasterIPAddress>/access/listvs?&apikey=Sv3twbV1LJQCH1K85q1gNGQm1
-wqMYXrAsIlDMF5pr0kz
+https://<LoadMasterIPAddress>/access/listvs?&apikey=YOUR_API_KEY
 
 You can list the API keys by running the following command:
 
-https://<LoadMasterIPAddress>/access/listapikeys?&apikey=ogSLq4qWN7c49E3DDu3P
-kdadNIq5hHdQzLpmZA8M5g0z
+https://<LoadMasterIPAddress>/access/listapikeys?&apikey=YOUR_API_KEY
 
 2.3.2.1 Delete an API Key
 
@@ -2344,8 +2342,7 @@ alphanumeric characters.
 If you are licensing using Kemp 360 Central, you may need to use the usersetsyspassword
 command instead:
 
-https://<LoadMasterIPAddress>/access/usersetsyspassword?currpassword=1fourall
-&password=<NewPassword>
+https://<LoadMasterIPAddress>/access/usersetsyspassword?currpassword=YOUR_CURRENT_PASSWORD&password=YOUR_NEW_PASSWORD
 
 Refer to the following table to determine what command you should use:
 

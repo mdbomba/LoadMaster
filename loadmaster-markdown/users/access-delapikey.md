@@ -29,7 +29,7 @@ POST https://<host>:<port>/access/delapikey?apikey=<apikey>&key=<key>&user=<user
 ## Example Request
 
 ```bash
-curl -sk -u "bal:PASSWORD" -X POST "https://10.0.0.69:443/access/delapikey?apikey=0123456789abcdef0123456789abcdef&key=0123456789abcdef&user=apiuser"
+curl -sk -u "bal:PASSWORD" -X POST "https://LOADMASTER_HOST:443/access/delapikey?apikey=YOUR_API_KEY&key=YOUR_KEY_ID&user=apiuser"
 ```
 
 ## Example Response (XML)

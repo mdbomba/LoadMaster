@@ -163,7 +163,7 @@ load_license_params() {
 
 save_loadmaster_params() {
   local key tmp_file value
-  local -a keys=(Api_User Api_Pass New_Api_Pass Api_Ip Api_Port Vm_Name
+  local -a keys=(Api_User Api_Pass LM_FACTORY_PASS New_Api_Pass Api_Ip Api_Port Vm_Name
     Progress_User Progress_Pass Order_Id License_Type Non_Free_License_Choice
     ntphost hostname nameserver LM_HOST LM_USERNAME LM_PASSWORD LM_API_KEY
     LM_PORT LM_VERIFY_SSL LM_TIMEOUT LM_VM_NAME)
