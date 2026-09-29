@@ -5,6 +5,7 @@ Loads connection settings from environment variables or a .env file.
 """
 
 import os
+import shlex
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -27,35 +28,51 @@ _ENV_SEARCH_PATHS = [
 
 
 def _load_params_file() -> None:
-    """Read ~/.secrets/loadmaster.params into the environment.
+    """Load the temp snapshot, then overlay non-empty ~/.secrets values.
 
     The params file uses shell-style KEY='value' lines and shares its
     credential names with license.params, so a single file can configure
     both the sample scripts and the MCP server. Existing environment
-    variables are never overwritten.
+    variables are never overwritten; blank secret placeholders do not erase
+    values gathered by the build wizard into the temp snapshot.
     """
-    params_path = Path(
+    temp_path = Path(
+        os.environ.get(
+            "LM_PROJECT_PARAMS_FILE",
+            Path.home() / "repos" / ".tmp" / "LoadMaster" / "loadmaster.params",
+        )
+    ).expanduser()
+    secrets_path = Path(
         os.environ.get("LM_PARAMS_FILE", Path.home() / ".secrets" / "loadmaster.params")
     ).expanduser()
-    if not params_path.exists():
-        return
-    for raw_line in params_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
+
+    # Secrets refresh the cached project values. Temp values are the fallback
+    # when a secret key is absent/blank; explicit process env remains highest.
+    for params_path in (secrets_path, temp_path):
+        if not params_path.exists():
             continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        if not key or key in os.environ:
-            continue
-        os.environ[key] = value.strip().strip("'\"")
+        for raw_line in params_path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, raw_value = line.split("=", 1)
+            key = key.strip()
+            if not key or key in os.environ:
+                continue
+            try:
+                words = shlex.split(raw_value, comments=True, posix=True)
+            except ValueError:
+                continue
+            value = words[0] if words else ""
+            if value:
+                os.environ[key] = value
 
 
 _load_params_file()
 
 for env_path in _ENV_SEARCH_PATHS:
     if env_path.exists():
-        load_dotenv(env_path)
-        break
+        load_dotenv(env_path, override=False)
 
 
 @dataclass

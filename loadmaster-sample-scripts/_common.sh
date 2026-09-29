@@ -4,7 +4,10 @@ set -euo pipefail
 COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${COMMON_DIR}/.." && pwd)"
 
-CAPTURE_ROOT_DEFAULT="${HOME}/repos/.tmp/LoadMaster/captures"
+LOADMASTER_TMP_DIR="${LOADMASTER_TMP_DIR:-${HOME}/repos/.tmp/LoadMaster}"
+LOADMASTER_PARAMS_FILE="${LOADMASTER_PARAMS_FILE:-${LOADMASTER_TMP_DIR}/loadmaster.params}"
+LOADMASTER_SECRETS_PARAMS="${LOADMASTER_SECRETS_PARAMS:-${HOME}/.secrets/loadmaster.params}"
+CAPTURE_ROOT_DEFAULT="${LOADMASTER_TMP_DIR}/captures"
 CAPTURE_ROOT="${CAPTURE_ROOT:-$CAPTURE_ROOT_DEFAULT}"
 LICENSE_PARAMS_NAME_DEFAULT="license.params"
 LICENSE_PARAMS_NAME="${LICENSE_PARAMS_NAME:-$LICENSE_PARAMS_NAME_DEFAULT}"
@@ -54,6 +57,37 @@ prompt_if_empty() {
   fi
 }
 
+source_params_overlay() {
+  local file="$1" line key
+  local -a keys=()
+  local -A prior_set=() prior_value=() prior_export=()
+  [[ -f "$file" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" =~ ^[[:space:]]*(export[[:space:]]+)?([A-Za-z_][A-Za-z0-9_]*)= ]]; then
+      keys+=("${BASH_REMATCH[2]}")
+    fi
+  done < "$file"
+  for key in "${keys[@]}"; do
+    prior_set["$key"]="${!key+x}"
+    prior_value["$key"]="${!key-}"
+    if declare -p "$key" 2>/dev/null | grep -q '^declare -x'; then
+      prior_export["$key"]=yes
+    else
+      prior_export["$key"]=no
+    fi
+  done
+  # shellcheck disable=SC1090
+  source "$file"
+  # Blank placeholder values do not erase a previously generated/prompted
+  # value. Non-empty ~/.secrets values refresh the project snapshot.
+  for key in "${keys[@]}"; do
+    if [[ "${prior_export[$key]}" == yes ]] || \
+       [[ -z "${!key-}" && "${prior_set[$key]}" == x ]]; then
+      printf -v "$key" '%s' "${prior_value[$key]}"
+    fi
+  done
+}
+
 # ── tools / params ─────────────────────────────────────────────────────────────
 
 ensure_tools() {
@@ -70,23 +104,44 @@ ensure_tools() {
 }
 
 load_license_params() {
-  # Real credentials belong in ~/.secrets/loadmaster.params. The in-repo
-  # license.params is a template and is only a fallback.
-  local params_default="${HOME}/.secrets/loadmaster.params"
-  if [[ ! -f "$params_default" ]]; then
-    params_default="${COMMON_DIR}/${LICENSE_PARAMS_NAME}"
+  local mode="${1:-}" params_file
+  # Load the generated project snapshot first; ~/.secrets is the source of
+  # truth and refreshes it when present.
+  params_file="${LICENSE_PARAMS_FILE:-$LOADMASTER_PARAMS_FILE}"
+  source_params_overlay "$params_file"
+  if [[ -f "$LOADMASTER_SECRETS_PARAMS" ]]; then
+    source_params_overlay "$LOADMASTER_SECRETS_PARAMS"
+  elif [[ ! -f "$params_file" && "$mode" != "build" ]]; then
+    # Compatibility for legacy local setups; this tracked file is a template.
+    if [[ -f "${COMMON_DIR}/${LICENSE_PARAMS_NAME}" ]]; then
+      # shellcheck disable=SC1090
+      source "${COMMON_DIR}/${LICENSE_PARAMS_NAME}"
+    elif [[ -f "${PROJECT_ROOT}/${LICENSE_PARAMS_NAME}" ]]; then
+      # shellcheck disable=SC1090
+      source "${PROJECT_ROOT}/${LICENSE_PARAMS_NAME}"
+    fi
   fi
-  if [[ ! -f "$params_default" ]]; then
-    params_default="${PROJECT_ROOT}/${LICENSE_PARAMS_NAME}"
-  fi
-  local params_file="${LICENSE_PARAMS_FILE:-$params_default}"
-  if [[ -f "$params_file" ]]; then
-    # shellcheck disable=SC1090
-    source "$params_file"
+  if [[ "$mode" == "build" ]]; then
+    # Don't seed missing build fields with the old in-repo demo password.
+    Api_User="${Api_User:-bal}"
+    Api_Pass="${Api_Pass:-}"
+    Api_Ip="${Api_Ip:-}"
+    Api_Port="${Api_Port:-443}"
+    Vm_Name="${Vm_Name:-}"
+    Progress_User="${Progress_User:-}"
+    Progress_Pass="${Progress_Pass:-}"
+    Order_Id="${Order_Id:-}"
+    Non_Free_License_Choice="${Non_Free_License_Choice:-}"
+    New_Api_Pass="${New_Api_Pass:-}"
+    License_Type="${License_Type:-}"
+    ntphost="${ntphost:-}"
+    hostname="${hostname:-}"
+    nameserver="${nameserver:-}"
+    return 0
   fi
 
   Api_User="${Api_User:-bal}"
-  Api_Pass="${Api_Pass:-1fourall}"
+  Api_Pass="${Api_Pass:-}"
   Api_Ip="${Api_Ip:-}"
   Api_Port="${Api_Port:-443}"
   Vm_Name="${Vm_Name:-}"
@@ -100,10 +155,40 @@ load_license_params() {
   hostname="${hostname:-}"
   nameserver="${nameserver:-}"
 
-  if [[ -z "${Api_Ip}" ]]; then
+  if [[ "$mode" != "build" && -z "${Api_Ip}" ]]; then
     echo "Api_Ip is required. Set it in license.params or export Api_Ip." >&2
     exit 1
   fi
+}
+
+save_loadmaster_params() {
+  local key tmp_file value
+  local -a keys=(Api_User Api_Pass New_Api_Pass Api_Ip Api_Port Vm_Name
+    Progress_User Progress_Pass Order_Id License_Type Non_Free_License_Choice
+    ntphost hostname nameserver LM_HOST LM_USERNAME LM_PASSWORD LM_API_KEY
+    LM_PORT LM_VERIFY_SSL LM_TIMEOUT LM_VM_NAME)
+  install -d -m 0700 "$(dirname "${LOADMASTER_PARAMS_FILE}")"
+  chmod 0700 "$(dirname "${LOADMASTER_PARAMS_FILE}")"
+  umask 077
+  tmp_file="$(mktemp "${LOADMASTER_PARAMS_FILE}.XXXXXX")"
+  {
+    printf '# Generated LoadMaster build parameters; mode 0600.\n'
+    for key in "${keys[@]}"; do
+      case "$key" in
+        LM_HOST) value="${Api_Ip:-${LM_HOST:-}}" ;;
+        LM_USERNAME) value="${Api_User:-${LM_USERNAME:-}}" ;;
+        LM_PASSWORD) value="${New_Api_Pass:-${Api_Pass:-${LM_PASSWORD:-}}}" ;;
+        LM_PORT) value="${Api_Port:-${LM_PORT:-443}}" ;;
+        LM_VERIFY_SSL) value="${LM_VERIFY_SSL:-false}" ;;
+        LM_TIMEOUT) value="${LM_TIMEOUT:-30}" ;;
+        LM_VM_NAME) value="${Vm_Name:-${LM_VM_NAME:-}}" ;;
+        *) printf -v value '%s' "${!key-}" ;;
+      esac
+      printf '%s=%q\n' "$key" "$value"
+    done
+  } >"$tmp_file"
+  chmod 0600 "$tmp_file"
+  mv -f -- "$tmp_file" "$LOADMASTER_PARAMS_FILE"
 }
 
 api_base() {

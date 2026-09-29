@@ -13,13 +13,14 @@ echo ""
 
 # ── credentials ───────────────────────────────────────────────────────────────
 
-load_license_params
+load_license_params build
 
 prompt_if_empty Api_Ip       "Appliance IP address"
 prompt_if_empty Api_Port     "Management port (default 443)"
 prompt_if_empty Api_User     "API admin username"
 prompt_if_empty Api_Pass     "API admin password" yes
 prompt_if_empty New_Api_Pass "New password for admin account" yes
+prompt_if_empty Vm_Name      "Libvirt VM name (optional; Enter to skip)"
 prompt_if_empty License_Type "License model (e.g. mela, melaenterprise)"
 if [[ "${License_Type,,}" != "free" ]]; then
   prompt_if_empty Non_Free_License_Choice "Non-Free license choice (trial or paid)"
@@ -47,6 +48,10 @@ prompt_if_empty Progress_Pass "Progress (KEMP) account password" yes
 prompt_if_empty ntphost      "NTP server hostname or IP"
 prompt_if_empty nameserver   "DNS nameserver(s) (comma-separated for multiple)"
 prompt_if_empty hostname     "Appliance hostname"
+
+# Persist the resolved values outside the checkout for subsequent project
+# commands. The source secrets file is never modified.
+save_loadmaster_params
 
 echo ""
 echo "  Appliance  : ${Api_Ip}:${Api_Port}"

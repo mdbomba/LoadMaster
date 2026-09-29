@@ -30,7 +30,14 @@ From `/home/chef`:
 ./loadmaster-sample-scripts/run_license.sh
 ```
 
-Credentials are read from `~/.secrets/loadmaster.params`; any missing values are prompted interactively. The in-repo `license.params` is a template and is only used when no secrets file exists.
+Credentials are read from `~/.secrets/loadmaster.params`; missing values are
+prompted interactively by `run_license.sh`. Non-empty explicit environment
+values take precedence over both params files. After prompting, the resolved build
+parameters are saved with mode `0600` to
+`~/repos/.tmp/LoadMaster/loadmaster.params`. Non-empty values in
+`~/.secrets/loadmaster.params` refresh the temp snapshot on each build; blank
+placeholders do not erase previously prompted values. The in-repo
+`license.params` is a template and is not used for builds.
 
 ## Standalone endpoint scripts
 Each script in `licensing/` accepts an optional scenario label:
@@ -43,7 +50,9 @@ Each script in `licensing/` accepts an optional scenario label:
 Supported scenarios: `success`, `missing-param`, `invalid-value`, `out-of-sequence`, `auth-failed`
 
 ## Environment overrides
-- `LICENSE_PARAMS_FILE` — parameter file path (default: `~/.secrets/loadmaster.params`)
+- `LICENSE_PARAMS_FILE` — project params file path (default: `~/repos/.tmp/LoadMaster/loadmaster.params`)
+- `LOADMASTER_SECRETS_PARAMS` — source params file (default: `~/.secrets/loadmaster.params`)
+- `LOADMASTER_TMP_DIR` — project temp directory (default: `~/repos/.tmp/LoadMaster`)
 - `CAPTURE_ROOT` — where raw responses are saved (default: `~/repos/.tmp/LoadMaster/captures`)
 - `LICENSE_TYPE` — license model passed to `access/accepteula` (default: `freemax`)
 - `MAGIC` / `MAGIC2` / `LIC_TYPE_ID` — token overrides for standalone scriptlet use
