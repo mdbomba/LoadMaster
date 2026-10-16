@@ -157,12 +157,12 @@ Special case for post-license recovery:
 
 See `loadmaster-documents/loadmaster_api_knowledge.md` for full API architecture documentation.
 
-## Available Tools (153 live management tools + 323 documented API endpoints)
+## Available Tools (160 MCP tools: 153 live management tools + 7 documentation tools)
 
 The MCP server provides two types of capabilities. Documentation and sample resources are bundled into installed wheels and are also read directly from the repository during editable development:
 
 1. **Live management tools** (153) — Direct actions on a connected LoadMaster (create VS, add RS, set parameters, etc.)
-2. **Documentation search** — Access to 323 per-endpoint API reference docs that the AI can consult for parameter details, examples, and behavior notes
+2. **Documentation search** — Access to 364 per-endpoint API reference docs that the AI can consult for parameter details, examples, and behavior notes
 
 ### Documentation Tools (7)
 
@@ -291,7 +291,7 @@ EULA workflow, online/on-premise licensing, initial setup.
 
 User CRUD, remote groups, API keys, WUI security settings.
 
-### Documentation Coverage (323 API endpoints)
+### Documentation Coverage (364 API endpoints)
 
 The MCP server's documentation tools (`get_document`, `search_docs`, `list_docs_in_category`)
 provide access to per-endpoint reference docs covering all LoadMaster API commands. Key areas

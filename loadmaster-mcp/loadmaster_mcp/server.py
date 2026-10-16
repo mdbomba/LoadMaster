@@ -275,7 +275,13 @@ def get_sample_script(script_name: str) -> str:
         script_name: The script filename (e.g. 'run_license.sh', '_common.sh',
                      'LM-STIG-Script_v3.ps1', 'licensing/access-readeula.sh')
     """
-    script_path = SCRIPTS_DIR / script_name
+    script_root = SCRIPTS_DIR.resolve()
+    script_path = (script_root / script_name).resolve()
+    try:
+        script_path.relative_to(script_root)
+    except ValueError:
+        return f"Script '{script_name}' is outside the sample scripts directory."
+
     if not script_path.exists():
         # List available scripts
         available = []

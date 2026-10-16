@@ -11,9 +11,15 @@ Automation scripts, parameter reference, and the KEMP PowerShell SDK for managin
 | `license.sh` | Standalone licensing script (single-file alternative) |
 | `license.params` | Template of credential and settings keys. Real values go in `~/.secrets/loadmaster.params` |
 | `licensing/*.sh` | One script per API endpoint for testing individual calls |
+| `hardening/stig-harden.sh` | Bash STIG hardening workflow |
+| `monitoring/health-check.sh` | LoadMaster health-check example |
+| `virtual-services/create-vs-with-rs.sh` | Create a virtual service and attach real servers |
+| `test.sh` | Sample script test/validation entry point |
 | `params-reference.md` | Complete parameter reference with current values and APIv2 usage |
 | `getall.xml` | Raw XML output from `access/getall` for reference |
 | `LM-STIG-Script_v3.ps1` | PowerShell STIG hardening script (US Gov compliance) |
+| `_Citrix_StoreFront_For_Virtual_Apps_and_Desktops_Latest.ps1` | Citrix StoreFront virtual service example |
+| `wug-loadmaster-rest-backup-action.ps1` | WhatsUp Gold REST backup action |
 | `powershell-sdk-vnext-master/` | KEMP PowerShell SDK (Apache 2.0, third-party) |
 
 ## Licensing Scripts
@@ -77,8 +83,8 @@ these automatically, but be aware when calling scriptlets standalone:
 
 The default `max_time` for all other calls is 30 seconds.
 
-The PS module (`master-deployment.ps1`) notes online licensing checks "could take up to 5 minutes"
-and uses `sleep 5` after appliance online detection plus `sleep 3` before/after several init calls.
+The third-party PowerShell SDK and deployment examples may use additional waits around online
+licensing and initial appliance setup.
 
 ## Post-licensing required steps
 

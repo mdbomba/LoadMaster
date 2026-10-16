@@ -12,7 +12,7 @@ Repository note:
 | `loadmaster-markdown/` | 364 per-endpoint API reference docs with APIv1 and APIv2 examples |
 | `loadmaster-documents/` | Knowledge base, workflows, error codes, troubleshooting, STIG tech note |
 | `loadmaster-sample-scripts/` | Bash scripts (licensing, VS deployment, STIG hardening, monitoring), PowerShell SDK, parameter reference |
-| `loadmaster-mcp/` | MCP server for AI-assisted LoadMaster management (156 tools) |
+| `loadmaster-mcp/` | MCP server for AI-assisted LoadMaster management (160 tools) |
 
 ## Dual MCP Demo Runbook (Local Workspace)
 
